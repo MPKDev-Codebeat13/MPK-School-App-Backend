@@ -326,7 +326,7 @@ export const changePassword = async (
 ) => {
   try {
     console.log('[DEBUG] [START] changePassword controller called')
-    const userId = (request as any).user?.id
+    const userId  = (request as any).user?.id
     const { currentPassword, newPassword } = request.body as any
 
     if (!newPassword) {
