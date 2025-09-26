@@ -25,6 +25,8 @@ import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import fastifySocketIO from 'fastify-socket.io'
 import * as jwt from 'jsonwebtoken'
+import { Socket } from 'socket.io'
+import mongoose from 'mongoose'
 
 import * as path from 'path'
 import * as fs from 'fs'
@@ -124,21 +126,23 @@ const startServer = async () => {
     fastify.ready(() => {
       const userSockets = new Map<string, string>() // userId -> socketId
 
-      ;(fastify as any).io.use((socket, next) => {
-        const token = socket.handshake.auth.token
-        if (!token) return next(new Error('Authentication error'))
-        try {
-          const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET as string
-          ) as any
-          ;(socket as any).userId = decoded.id
-          next()
-        } catch (err) {
-          next(new Error('Authentication error'))
+      ;(fastify as any).io.use(
+        (socket: Socket, next: (err?: Error) => void) => {
+          const token = socket.handshake.auth.token
+          if (!token) return next(new Error('Authentication error'))
+          try {
+            const decoded = jwt.verify(
+              token,
+              process.env.JWT_SECRET as string
+            ) as any
+            ;(socket as any).userId = decoded.id
+            next()
+          } catch (err) {
+            next(new Error('Authentication error'))
+          }
         }
-      })
-      ;(fastify as any).io.on('connection', (socket) => {
+      )
+      ;(fastify as any).io.on('connection', (socket: Socket) => {
         const userId = (socket as any).userId
         userSockets.set(userId, socket.id)
         console.log(`User ${userId} connected with socket ${socket.id}`)
@@ -242,16 +246,18 @@ const startServer = async () => {
                 console.log(
                   '[DEBUG] Broadcasting messageDeleted to private recipients'
                 )
-                message.recipients.forEach((recipientId) => {
-                  const recipientSocketId = userSockets.get(
-                    recipientId.toString()
-                  )
-                  if (recipientSocketId) {
-                    ;(fastify as any).io
-                      .to(recipientSocketId)
-                      .emit('messageDeleted', data.messageId)
+                message.recipients.forEach(
+                  (recipientId: mongoose.Types.ObjectId) => {
+                    const recipientSocketId = userSockets.get(
+                      recipientId.toString()
+                    )
+                    if (recipientSocketId) {
+                      ;(fastify as any).io
+                        .to(recipientSocketId)
+                        .emit('messageDeleted', data.messageId)
+                    }
                   }
-                })
+                )
               }
             } catch (error) {
               console.error('Error deleting message:', error)
@@ -263,7 +269,7 @@ const startServer = async () => {
           if (data.room === 'public') {
             socket.to('public').emit('userTyping', data.userId)
           } else if (data.room === 'private' && data.recipients) {
-            data.recipients.forEach((recipientId) => {
+            data.recipients.forEach((recipientId: string) => {
               const recipientSocketId = userSockets.get(recipientId.toString())
               if (recipientSocketId) {
                 ;(fastify as any).io

@@ -178,14 +178,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
       reply.redirect(frontendUrl)
     } catch (error) {
       clearTimeout(timeoutId)
-      if (error.name === 'AbortError') {
+      if ((error as Error).name === 'AbortError') {
         console.error('[DEBUG] OAuth callback timed out')
         return reply.code(408).send({ error: 'Request timeout' })
       }
       console.error('[DEBUG] Google OAuth failed:', error)
       reply
         .code(500)
-        .send({ error: 'Google OAuth failed', details: error.message })
+        .send({ error: 'Google OAuth failed', details: (error as Error).message })
     }
   })
 
@@ -233,7 +233,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
         refreshToken: newRefreshToken,
       })
     } catch (error) {
-      console.error('[DEBUG] Refresh token error:', error)
+      const err = error as Error
+      console.error('[DEBUG] Refresh token error:', err)
       reply.code(500).send({ error: 'Refresh token failed' })
     }
   })

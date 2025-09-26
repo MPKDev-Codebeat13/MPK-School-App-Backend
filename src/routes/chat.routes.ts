@@ -63,7 +63,10 @@ export default async function chatRoutes(fastify: FastifyInstance) {
         console.error('[ERROR] Failed to delete message:', error)
         reply
           .code(500)
-          .send({ error: 'Failed to delete message', details: error.message })
+          .send({
+            error: 'Failed to delete message',
+            details: (error as Error).message,
+          })
       }
     },
   })
