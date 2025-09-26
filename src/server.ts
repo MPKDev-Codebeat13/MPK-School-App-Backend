@@ -101,6 +101,9 @@ const startServer = async () => {
     fastify.register(attendanceRoutes, { prefix: '/api' })
     fastify.register(parentRoutes, { prefix: '/api' })
     fastify.register(homeworkRoutes, { prefix: '/api' })
+    fastify.get('/', async () => ({
+      message: 'Welcome to the MPK School App API',
+    }))
     fastify.get('/health', async () => ({ ok: true }))
     fastify.setNotFoundHandler((_req, reply) => {
       console.log('[DEBUG] 404 Not Found:', _req.url)
