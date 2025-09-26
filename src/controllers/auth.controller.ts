@@ -22,12 +22,13 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     ) {
       // If file is uploaded via multipart/form-data
       const file = (request as any).file
+      const timestamp = Date.now()
       const uploadPath = path.join(
         __dirname,
         '..',
         '..',
         'uploads',
-        `profile_${Date.now()}_${file.filename}`
+        `profile_${timestamp}_${file.filename}`
       )
 
       // Ensure uploads directory exists
@@ -41,7 +42,13 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       if (filePath) {
         const buffer = fs.readFileSync(filePath)
         fs.writeFileSync(uploadPath, buffer)
-        profilePicture = `/uploads/profile_${Date.now()}_${file.filename}`
+        profilePicture = `/uploads/profile_${timestamp}_${file.filename}`
+        // Clean up temp file
+        try {
+          fs.unlinkSync(filePath)
+        } catch (err) {
+          console.warn('[DEBUG] Failed to delete temp file:', err)
+        }
       }
     }
     const { fullName, email, password, role, grade, subject } =
@@ -288,28 +295,27 @@ export const resendVerificationEmail = async (
       await user.save()
       console.log('[DEBUG] Verification email sent successfully to:', email)
     } catch (emailError) {
-      console.error('[DEBUG] Failed to send verification email:', emailError)
+      const err = emailError as Error
+      console.error('[DEBUG] Failed to send verification email:', err)
       return reply.code(500).send({
         error: 'Failed to send verification email',
         details:
-          process.env.NODE_ENV === 'development'
-            ? emailError.message
-            : undefined,
+          process.env.NODE_ENV === 'development' ? err.message : undefined,
       })
     }
 
     reply.send({ message: 'Verification email sent successfully' })
   } catch (error) {
-    console.error('[DEBUG] [ERROR] resendVerificationEmail controller:', error)
+    const err = error as Error
+    console.error('[DEBUG] [ERROR] resendVerificationEmail controller:', err)
     console.error('[DEBUG] Controller error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
+      message: err.message,
+      stack: err.stack,
+      code: (err as any).code,
     })
     return reply.code(500).send({
       error: 'Resend verification failed',
-      details:
-        process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined,
     })
   }
 }
@@ -448,7 +454,8 @@ export const updateUser = async (
     // Handle avatar upload
     if ((request as any).file) {
       const file = (request as any).file
-      const filename = `profile_${Date.now()}_${file.filename || 'avatar.jpg'}`
+      const timestamp = Date.now()
+      const filename = `profile_${timestamp}_${file.filename || 'avatar.jpg'}`
       const uploadPath = path.join(__dirname, '..', '..', 'uploads', filename)
 
       // Ensure uploads directory exists
@@ -463,6 +470,12 @@ export const updateUser = async (
         const buffer = fs.readFileSync(filePath)
         fs.writeFileSync(uploadPath, buffer)
         profilePicture = `/uploads/${filename}`
+        // Clean up temp file
+        try {
+          fs.unlinkSync(filePath)
+        } catch (err) {
+          console.warn('[DEBUG] Failed to delete temp file:', err)
+        }
       }
     }
 
