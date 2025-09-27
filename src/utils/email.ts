@@ -6,19 +6,30 @@ export const generateVerificationToken = (): string => {
 }
 
 export const createTransporter = () => {
+  const emailUser = process.env.EMAIL_USER
+  const emailPass = process.env.EMAIL_PASS
+
+  if (!emailUser || !emailPass) {
+    throw new Error(
+      'Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables.'
+    )
+  }
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT) || 587,
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: emailUser,
+      pass: emailPass,
     },
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
     rateDelta: 1000 * 60 * 10, // 10 minutes
     rateLimit: 10, // 10 messages per rateDelta
+    connectionTimeout: 10000, // 10 seconds
+    socketTimeout: 10000, // 10 seconds
   })
 }
 
