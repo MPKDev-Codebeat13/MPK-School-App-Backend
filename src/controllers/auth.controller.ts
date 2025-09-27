@@ -514,7 +514,7 @@ export const updateUser = async (
       if (typeof body.role === 'object' && body.role.value) {
         roleValue = body.role.value
       }
-      if (!['Student', 'Teacher', 'Parent', 'Admin'].includes(roleValue)) {
+      if (!['Student', 'Teacher','Department', 'Parent', 'Admin'].includes(roleValue)) {
         return reply.code(400).send({ error: 'Invalid role' })
       }
       role = roleValue
