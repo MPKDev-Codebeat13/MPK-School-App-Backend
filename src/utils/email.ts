@@ -5,31 +5,22 @@ export const generateVerificationToken = (): string => {
   return crypto.randomBytes(32).toString('hex')
 }
 
+// Create SendGrid transporter
 export const createTransporter = () => {
-  const emailUser = process.env.EMAIL_USER
-  const emailPass = process.env.EMAIL_PASS
+  const sendGridKey = process.env.SENDGRID_API_KEY
 
-  if (!emailUser || !emailPass) {
+  if (!sendGridKey) {
     throw new Error(
-      'Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables.'
+      'SendGrid credentials not configured. Please set SENDGRID_API_KEY in your environment variables.'
     )
   }
 
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: Number(process.env.EMAIL_PORT) || 587,
-    secure: false, // true for 465, false for other ports
+    service: 'SendGrid',
     auth: {
-      user: emailUser,
-      pass: emailPass,
+      user: 'apikey', // This is required, literally the string 'apikey'
+      pass: sendGridKey,
     },
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    rateDelta: 1000 * 60 * 10, // 10 minutes
-    rateLimit: 10, // 10 messages per rateDelta
-    connectionTimeout: 10000, // 10 seconds
-    socketTimeout: 10000, // 10 seconds
   })
 }
 
@@ -42,7 +33,7 @@ export const sendVerificationEmail = async (
   const transporter = createTransporter()
 
   const mailOptions = {
-    from: process.env.EMAIL_USER || 'noreply@mmyschoolapp.com',
+    from: process.env.EMAIL_FROM || 'noreply@mymnexus.com',
     to: email,
     subject: 'Verify Your Email - MYM Nexus',
     html: `
