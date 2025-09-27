@@ -19,6 +19,7 @@
     "@fastify/multipart": "^9.2.1",
     "@fastify/oauth2": "^8.1.2",
     "@fastify/static": "^8.2.0",
+    "@sendgrid/mail": "^8.1.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.1",

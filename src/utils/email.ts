@@ -1,20 +1,8 @@
 import * as crypto from 'crypto'
-import nodemailer from 'nodemailer'
+import sgMail from '@sendgrid/mail'
 
 export const generateVerificationToken = (): string => {
   return crypto.randomBytes(32).toString('hex')
-}
-
-export const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: Number(process.env.EMAIL_PORT) || 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  })
 }
 
 export const sendVerificationEmail = async (
@@ -23,11 +11,12 @@ export const sendVerificationEmail = async (
 ): Promise<void> => {
   const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`
 
-  const transporter = createTransporter()
+  // Set SendGrid API key
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY as string)
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER || 'noreply@mmyschoolapp.com',
+  const msg = {
     to: email,
+    from: 'noreply@mymnexus.netlify.app', // Use a verified sender email in SendGrid
     subject: 'Verify Your Email - MYM Nexus',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -45,7 +34,7 @@ export const sendVerificationEmail = async (
   }
 
   try {
-    await transporter.sendMail(mailOptions)
+    await sgMail.send(msg)
     console.log(`[EMAIL] Verification email sent to ${email}`)
   } catch (error) {
     console.error('[EMAIL] Failed to send verification email:', error)
