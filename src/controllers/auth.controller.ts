@@ -91,17 +91,23 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       return reply.code(400).send({ error: 'User already exists' })
     }
     const verificationToken = generateVerificationToken()
-    const user = new User({
+    const userData: any = {
       fullName: trimmedFullName,
       email: trimmedEmail,
       password,
       role,
       grade,
-      subject,
       profilePicture,
       verificationToken,
       verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    })
+    }
+
+    // Only set subject for roles that require it
+    if (role === 'Teacher' || role === 'Department') {
+      userData.subject = subject
+    }
+
+    const user = new User(userData)
     await user.save()
 
     // Send verification email immediately during signup
