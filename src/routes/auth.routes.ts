@@ -132,23 +132,20 @@ export default async function authRoutes(fastify: FastifyInstance) {
           email: profile.email,
           role: '', // Don't set default role, let user choose in CompleteProfile
           profilePicture: profile.picture || '',
-          isVerified: true, // OAuth users are already verified by Google
+          isVerified: false, // OAuth users need to complete profile first
           isOAuth: true,
         })
         console.log('[DEBUG] New OAuth user created:', profile.email)
       } else {
-        // Existing OAuth user - ensure verified
+        // Existing OAuth user - check if they need to complete profile
         if (user.isOAuth && !user.isVerified) {
-          user.isVerified = true
-          user.verificationToken = undefined
-          user.verificationTokenExpires = undefined
-          await user.save()
           console.log(
-            '[DEBUG] Marked existing OAuth user as verified:',
+            '[DEBUG] Existing OAuth user needs profile completion:',
             user.email
           )
+        } else {
+          console.log('[DEBUG] Existing OAuth user found:', user.email)
         }
-        console.log('[DEBUG] Existing OAuth user found:', user.email)
       }
       // Generate JWT
       const jwtToken = jwt.sign(
@@ -245,5 +242,35 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/change-password', {
     preHandler: authenticate,
     handler: changePassword,
+  })
+
+  // Auto-verify OAuth user endpoint
+  fastify.post('/auto-verify-oauth', async (request, reply) => {
+    try {
+      const { email } = request.body as any
+      if (!email) {
+        return reply.code(400).send({ error: 'Email is required' })
+      }
+
+      const user = await User.findOne({ email, isOAuth: true })
+      if (!user) {
+        return reply.code(404).send({ error: 'OAuth user not found' })
+      }
+
+      if (user.isVerified) {
+        return reply.send({ message: 'User already verified' })
+      }
+
+      user.isVerified = true
+      user.verificationToken = undefined
+      user.verificationTokenExpires = undefined
+      await user.save()
+
+      console.log(`[DEBUG] OAuth user auto-verified: ${user.email}`)
+      reply.send({ message: 'OAuth user auto-verified successfully' })
+    } catch (error) {
+      console.error('[DEBUG] Auto-verify OAuth error:', error)
+      reply.code(500).send({ error: 'Auto-verification failed' })
+    }
   })
 }
