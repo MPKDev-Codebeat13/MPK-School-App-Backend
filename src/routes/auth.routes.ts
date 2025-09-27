@@ -67,6 +67,17 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/verify-email', { handler: verifyEmail })
   fastify.post('/resend-verification', { handler: resendVerificationEmail })
 
+  // Google OAuth start
+  fastify.get('/google', async (request, reply) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI ||
+        'https://mym-nexus.onrender.com/api/auth/google/callbackapi/auth/google/callback'
+    const scope = 'openid profile email'
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`
+    reply.redirect(authUrl)
+  })
+
   // Google OAuth callback handler
   fastify.get('/google/callback', async (request, reply) => {
     const controller = new AbortController()
@@ -87,7 +98,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         redirect_uri:
           process.env.GOOGLE_REDIRECT_URI ||
           `${
-             'https://mym-nexus.onrender.com'
+            process.env.SERVER_URL || 'http://localhost:4000'
           }/api/auth/google/callback`,
       })
       const tokenResponse = await fetch(tokenUrl, {
