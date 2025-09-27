@@ -23,9 +23,9 @@ import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
-import fastifySocketIO from 'fastify-socket.io'
 import rateLimit from '@fastify/rate-limit'
 import compress from '@fastify/compress'
+import fastifySocketIO from 'fastify-socket.io'
 import * as jwt from 'jsonwebtoken'
 import { Socket } from 'socket.io'
 import mongoose from 'mongoose'
@@ -127,7 +127,12 @@ const startServer = async () => {
     fastify.get('/', async () => ({
       message: 'Welcome to the MPK School App API',
     }))
-    fastify.get('/health', async () => ({ ok: true }))
+    fastify.get('/health', async () => ({
+      status: 'ok',
+      env: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    }))
     fastify.setNotFoundHandler((_req, reply) => {
       console.log('[DEBUG] 404 Not Found:', _req.url)
       reply.code(404).send({ error: 'Route not found' })
@@ -139,10 +144,12 @@ const startServer = async () => {
     await fastify.register(fastifySocketIO, {
       cors: {
         origin: [
+          process.env.CLIENT_URL || 'https://mymnexus.netlify.app',
+          'http://192.168.1.10:5173', // Allow local network access
           'http://192.168.1.9:5173/',
-          'http://localhost:5173',
-          'http://127.0.0.1:5173',
-          'http://192.168.1.9:5173',
+          'http://localhost:5173', // Local development
+          'http://127.0.0.1:5173', // Localhost alternative
+          'http://192.168.1.9:5173', // Without trailing slash
         ],
         credentials: true,
       },

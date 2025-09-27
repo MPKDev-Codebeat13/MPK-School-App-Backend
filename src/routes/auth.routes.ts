@@ -64,15 +64,33 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/signup', { handler: signup })
   fastify.post('/login', { handler: login })
   fastify.get('/profile', { preHandler: authenticate, handler: getProfile })
-  fastify.get('/verify-email', { handler: verifyEmail })
-  fastify.post('/resend-verification', { handler: resendVerificationEmail })
+  fastify.get('/verify-email', {
+    handler: verifyEmail,
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+      },
+    },
+  })
+  fastify.post('/resend-verification', {
+    handler: resendVerificationEmail,
+    config: {
+      rateLimit: {
+        max: 3,
+        timeWindow: '5 minutes',
+      },
+    },
+  })
 
   // Google OAuth start
   fastify.get('/google', async (request, reply) => {
     const clientId = process.env.GOOGLE_CLIENT_ID
     const redirectUri =
       process.env.GOOGLE_REDIRECT_URI ||
-      'http://localhost:4000/api/auth/google/callback'
+      `${
+        process.env.CLIENT_URL || 'https://mymnexus.netlify.app'
+      }/api/auth/google/callback`
     const scope = 'openid profile email'
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`
     reply.redirect(authUrl)
@@ -97,7 +115,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
         grant_type: 'authorization_code',
         redirect_uri:
           process.env.GOOGLE_REDIRECT_URI ||
-          'http://localhost:4000/api/auth/google/callback',
+          `${
+            process.env.CLIENT_URL || 'https://mymnexus.netlify.app'
+          }/api/auth/google/callback`,
       })
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
@@ -255,14 +275,5 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/change-password', {
     preHandler: authenticate,
     handler: changePassword,
-  })
-
-  // Health check endpoint
-  fastify.get('/health', async (request, reply) => {
-    reply.send({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-    })
   })
 }
