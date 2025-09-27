@@ -1,11 +1,11 @@
 import * as crypto from 'crypto'
-import * as nodemailer from 'nodemailer'
+import nodemailer from 'nodemailer'
 
 export const generateVerificationToken = (): string => {
   return crypto.randomBytes(32).toString('hex')
 }
 
-const createTransporter = () => {
+export const createTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT) || 587,
