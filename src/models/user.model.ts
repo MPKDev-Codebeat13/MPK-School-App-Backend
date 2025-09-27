@@ -25,6 +25,7 @@ export interface IUser extends Document {
   resetPasswordToken?: string
   resetPasswordExpires?: Date
   verificationEmailSent?: boolean
+  lastVerificationEmailSent?: Date
   refreshTokens: string[]
   createdAt: Date
   updatedAt: Date
@@ -98,6 +99,7 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    lastVerificationEmailSent: Date,
     refreshTokens: [
       {
         type: String,

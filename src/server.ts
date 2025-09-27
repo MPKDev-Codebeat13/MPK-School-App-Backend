@@ -24,6 +24,8 @@ import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import fastifySocketIO from 'fastify-socket.io'
+import rateLimit from '@fastify/rate-limit'
+import compress from '@fastify/compress'
 import * as jwt from 'jsonwebtoken'
 import { Socket } from 'socket.io'
 import mongoose from 'mongoose'
@@ -42,13 +44,26 @@ import homeworkRoutes from './routes/homework.routes'
 import Message from './models/message.model'
 
 const fastify = Fastify({
-  logger: true,
+  logger: process.env.NODE_ENV === 'production' ? require('pino')() : true,
   disableRequestLogging: false,
   requestTimeout: 30000, // 30 second timeout
   connectionTimeout: 30000, // 30 second connection timeout
 })
 
 import * as http from 'http'
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('[DEBUG] SIGINT received, shutting down gracefully...')
+  await fastify.close()
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  console.log('[DEBUG] SIGTERM received, shutting down gracefully...')
+  await fastify.close()
+  process.exit(0)
+})
 
 const startServer = async () => {
   fastify.addHook('onRequest', async (request, reply) => {
@@ -60,13 +75,21 @@ const startServer = async () => {
     // Removed custom JSON body parser to use Fastify's built-in parser
     console.log('[DEBUG] Registering helmet plugin...')
     await fastify.register(helmet)
+    console.log('[DEBUG] Registering compress plugin...')
+    await fastify.register(compress)
+    console.log('[DEBUG] Registering rate-limit plugin...')
+    await fastify.register(rateLimit, {
+      max: 100,
+      timeWindow: '1 minute',
+      skipOnError: true,
+    })
     console.log(
       '[DEBUG] Registering CORS plugin with origin:',
       process.env.CLIENT_URL
     )
     await fastify.register(cors, {
       origin: [
-        process.env.CLIENT_URL || 'http://192.168.1.9:5173/',
+        process.env.CLIENT_URL || 'https://mymnexus.netlify.app',
         'http://192.168.1.10:5173', // Allow local network access
         'http://192.168.1.9:5173/',
         'http://localhost:5173', // Local development

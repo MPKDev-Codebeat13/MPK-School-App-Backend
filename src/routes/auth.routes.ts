@@ -1,4 +1,3 @@
-/// <reference lib="dom" />
 import { FastifyInstance } from 'fastify'
 import {
   signup,
@@ -170,7 +169,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       // Redirect to frontend with token and user data
       const frontendUrl = `${
-        process.env.CLIENT_URL || 'http://localhost:5173'
+        process.env.CLIENT_URL || 'https://mymnexus.netlify.app'
       }/oauth-callback?accessToken=${jwtToken}&user=${encodeURIComponent(
         JSON.stringify(user)
       )}`
@@ -183,9 +182,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
         return reply.code(408).send({ error: 'Request timeout' })
       }
       console.error('[DEBUG] Google OAuth failed:', error)
-      reply
-        .code(500)
-        .send({ error: 'Google OAuth failed', details: (error as Error).message })
+      reply.code(500).send({
+        error: 'Google OAuth failed',
+        details: (error as Error).message,
+      })
     }
   })
 
@@ -257,4 +257,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
     handler: changePassword,
   })
 
+  // Health check endpoint
+  fastify.get('/health', async (request, reply) => {
+    reply.send({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+    })
+  })
 }

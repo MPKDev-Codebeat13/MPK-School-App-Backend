@@ -15,13 +15,59 @@ import * as path from 'path'
 export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     console.log('[DEBUG] [START] Signup controller called. Body:', request.body)
+
+    // Input validation and sanitization
+    const { fullName, email, password, role, grade, subject } =
+      request.body as any
+
+    if (!fullName || !email || !password || !role) {
+      return reply
+        .code(400)
+        .send({ error: 'Full name, email, password, and role are required' })
+    }
+
+    const trimmedEmail = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return reply.code(400).send({ error: 'Invalid email format' })
+    }
+
+    if (password.length < 6) {
+      return reply
+        .code(400)
+        .send({ error: 'Password must be at least 6 characters long' })
+    }
+
+    const trimmedFullName = fullName.trim()
+    if (trimmedFullName.length < 2) {
+      return reply
+        .code(400)
+        .send({ error: 'Full name must be at least 2 characters long' })
+    }
+
+    // File upload validation
     let profilePicture = ''
-    if (
-      (request as any).file &&
-      ((request as any).file.tempFilePath || (request as any).file.path)
-    ) {
-      // If file is uploaded via multipart/form-data
+    if ((request as any).file) {
       const file = (request as any).file
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+      ]
+
+      if (file.size > maxSize) {
+        return reply
+          .code(400)
+          .send({ error: 'Profile picture must be less than 5MB' })
+      }
+
+      if (!allowedTypes.includes(file.mimetype)) {
+        return reply.code(400).send({
+          error: 'Profile picture must be a valid image (JPEG, PNG, GIF, WebP)',
+        })
+      }
+
       const timestamp = Date.now()
       const uploadPath = path.join(
         __dirname,
@@ -51,16 +97,15 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
         }
       }
     }
-    const { fullName, email, password, role, grade, subject } =
-      request.body as any
-    const existingUser = await User.findOne({ email })
+
+    const existingUser = await User.findOne({ email: trimmedEmail })
     if (existingUser) {
       return reply.code(400).send({ error: 'User already exists' })
     }
     const verificationToken = generateVerificationToken()
     const user = new User({
-      fullName,
-      email,
+      fullName: trimmedFullName,
+      email: trimmedEmail,
       password,
       role,
       grade,
@@ -71,11 +116,23 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     })
     await user.save()
 
-    // Don't send verification email during signup
-    // It will be sent when user reaches check-email page
-    console.log(
-      '[DEBUG] Verification email will be sent when user reaches check-email page'
-    )
+    // Send verification email immediately during signup
+    try {
+      await sendVerificationEmail(user.email, verificationToken)
+      user.verificationEmailSent = true
+      await user.save()
+      console.log(
+        '[DEBUG] Verification email sent successfully to:',
+        user.email
+      )
+    } catch (emailError) {
+      const err = emailError as Error
+      console.error(
+        '[DEBUG] Failed to send verification email during signup:',
+        err
+      )
+      // Don't fail signup if email fails, but log it
+    }
 
     console.log('[DEBUG] [END] Signup controller: User created:', user.email)
     reply.code(201).send({
@@ -84,8 +141,8 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       redirectTo: '/check-email',
       user: {
         id: user._id,
-        fullName,
-        email,
+        fullName: trimmedFullName,
+        email: trimmedEmail,
         role,
         grade,
         subject,
@@ -272,6 +329,21 @@ export const resendVerificationEmail = async (
       return reply.code(400).send({ error: 'User is already verified' })
     }
 
+    // Check cooldown: prevent resending within 1 minute
+    if (user.lastVerificationEmailSent) {
+      const timeSinceLastSent =
+        Date.now() - user.lastVerificationEmailSent.getTime()
+      const cooldownPeriod = 60 * 1000 // 1 minute
+      if (timeSinceLastSent < cooldownPeriod) {
+        const remainingTime = Math.ceil(
+          (cooldownPeriod - timeSinceLastSent) / 1000
+        )
+        return reply.code(429).send({
+          error: `Please wait ${remainingTime} seconds before requesting another verification email`,
+        })
+      }
+    }
+
     // Generate new verification token
     const verificationToken = generateVerificationToken()
     console.log(
@@ -326,7 +398,7 @@ export const changePassword = async (
 ) => {
   try {
     console.log('[DEBUG] [START] changePassword controller called')
-    const userId  = (request as any).user?.id
+    const userId = (request as any).user?.id
     const { currentPassword, newPassword } = request.body as any
 
     if (!newPassword) {
@@ -418,42 +490,83 @@ export const updateUser = async (
     let grade = user.grade
     let subject = user.subject
 
-    // Handle multipart fields or JSON
+    // Input validation and sanitization
     if (body.fullName) {
+      let nameValue = body.fullName
       if (typeof body.fullName === 'object' && body.fullName.value) {
-        fullName = body.fullName.value
-      } else if (typeof body.fullName === 'string') {
-        fullName = body.fullName
+        nameValue = body.fullName.value
       }
+      const trimmedName = nameValue.trim()
+      if (trimmedName.length < 2) {
+        return reply
+          .code(400)
+          .send({ error: 'Full name must be at least 2 characters long' })
+      }
+      fullName = trimmedName
     }
 
     if (body.role) {
+      let roleValue = body.role
       if (typeof body.role === 'object' && body.role.value) {
-        role = body.role.value
-      } else if (typeof body.role === 'string') {
-        role = body.role
+        roleValue = body.role.value
       }
+      if (!['Student', 'Teacher', 'Parent', 'Admin'].includes(roleValue)) {
+        return reply.code(400).send({ error: 'Invalid role' })
+      }
+      role = roleValue
     }
 
     if (body.grade) {
+      let gradeValue = body.grade
       if (typeof body.grade === 'object' && body.grade.value) {
-        grade = body.grade.value
-      } else if (typeof body.grade === 'string') {
-        grade = body.grade
+        gradeValue = body.grade.value
       }
+      if (
+        gradeValue &&
+        (typeof gradeValue !== 'string' || gradeValue.length > 20)
+      ) {
+        return reply.code(400).send({ error: 'Invalid grade' })
+      }
+      grade = gradeValue
     }
 
     if (body.subject) {
+      let subjectValue = body.subject
       if (typeof body.subject === 'object' && body.subject.value) {
-        subject = body.subject.value
-      } else if (typeof body.subject === 'string') {
-        subject = body.subject
+        subjectValue = body.subject.value
       }
+      if (
+        subjectValue &&
+        (typeof subjectValue !== 'string' || subjectValue.length > 50)
+      ) {
+        return reply.code(400).send({ error: 'Invalid subject' })
+      }
+      subject = subjectValue
     }
 
-    // Handle avatar upload
+    // Handle avatar upload with validation
     if ((request as any).file) {
       const file = (request as any).file
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+      ]
+
+      if (file.size > maxSize) {
+        return reply
+          .code(400)
+          .send({ error: 'Profile picture must be less than 5MB' })
+      }
+
+      if (!allowedTypes.includes(file.mimetype)) {
+        return reply.code(400).send({
+          error: 'Profile picture must be a valid image (JPEG, PNG, GIF, WebP)',
+        })
+      }
+
       const timestamp = Date.now()
       const filename = `profile_${timestamp}_${file.filename || 'avatar.jpg'}`
       const uploadPath = path.join(__dirname, '..', '..', 'uploads', filename)
