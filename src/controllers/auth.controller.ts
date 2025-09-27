@@ -26,6 +26,16 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
         .send({ error: 'Full name, email, password, and role are required' })
     }
 
+    // Validate subject only for roles that require it
+    if (
+      (role === 'Teacher' || role === 'Department') &&
+      (!subject || subject.trim() === '')
+    ) {
+      return reply
+        .code(400)
+        .send({ error: 'Subject is required for teachers and departments' })
+    }
+
     const trimmedEmail = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       return reply.code(400).send({ error: 'Invalid email format' })
