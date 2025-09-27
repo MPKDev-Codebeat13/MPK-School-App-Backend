@@ -21,7 +21,7 @@ export const sendVerificationEmail = async (
   email: string,
   token: string
 ): Promise<void> => {
-  const verificationUrl = `http://localhost:5173/verify-email?token=${token}`
+  const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`
 
   const transporter = createTransporter()
 
