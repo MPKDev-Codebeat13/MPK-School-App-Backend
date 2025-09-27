@@ -124,44 +124,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
         return reply.code(500).send({ error: 'User info fetch failed' })
       }
 
-      // Find or create user
       let user = await User.findOne({ email: profile.email })
       if (!user) {
-        // Generate verification token for new OAuth user
-        const verificationToken = generateVerificationToken()
         user = await User.create({
           fullName: profile.name,
           email: profile.email,
           role: '', // Don't set default role, let user choose in CompleteProfile
           profilePicture: profile.picture || '',
-          isVerified: false, // OAuth users need to verify email too
+          isVerified: true, // OAuth users are already verified by Google
           isOAuth: true,
-          verificationToken,
-          verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         })
-
-        // Send verification email for OAuth users only if on CheckEmailPage
-        try {
-          // We cannot detect client page here, so remove sending email here
-          // Instead, send verification email only when user is on CheckEmailPage (client side)
-          // So skip sending email here for OAuth users
-          // Commenting out the sendVerificationEmail call here
-          // await sendVerificationEmail(profile.email, verificationToken)
+        console.log('[DEBUG] New OAuth user created:', profile.email)
+      } else {
+        // Existing OAuth user - ensure verified
+        if (user.isOAuth && !user.isVerified) {
+          user.isVerified = true
+          user.verificationToken = undefined
+          user.verificationTokenExpires = undefined
+          await user.save()
           console.log(
-            '[DEBUG] Skipped sending verification email to OAuth user here, defer to client CheckEmailPage:',
-            profile.email
-          )
-        } catch (emailError) {
-          console.error(
-            '[DEBUG] Failed to send verification email to OAuth user:',
-            emailError
+            '[DEBUG] Marked existing OAuth user as verified:',
+            user.email
           )
         }
-      } else {
-        // Existing OAuth user
         console.log('[DEBUG] Existing OAuth user found:', user.email)
       }
-
       // Generate JWT
       const jwtToken = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
