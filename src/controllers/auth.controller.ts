@@ -561,12 +561,6 @@ export const updateUser = async (
           .send({ error: 'Profile picture must be less than 5MB' })
       }
 
-      if (!allowedTypes.includes(file.mimetype)) {
-        return reply.code(400).send({
-          error: 'Profile picture must be a valid image (JPEG, PNG, GIF, WebP)',
-        })
-      }
-
       const timestamp = Date.now()
       const filename = `profile_${timestamp}_${file.filename || 'avatar.jpg'}`
       const uploadPath = path.join(__dirname, '..', '..', 'uploads', filename)

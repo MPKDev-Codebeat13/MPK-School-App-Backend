@@ -52,6 +52,7 @@ const verifyEmail = async (request: any, reply: any) => {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        isOAuth: user.isOAuth,
       },
     })
   } catch (error) {
