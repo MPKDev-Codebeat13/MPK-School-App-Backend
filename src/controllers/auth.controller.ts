@@ -49,23 +49,11 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     if ((request as any).file) {
       const file = (request as any).file
       const maxSize = 5 * 1024 * 1024 // 5MB
-      const allowedTypes = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-      ]
 
       if (file.size > maxSize) {
         return reply
           .code(400)
           .send({ error: 'Profile picture must be less than 5MB' })
-      }
-
-      if (!allowedTypes.includes(file.mimetype)) {
-        return reply.code(400).send({
-          error: 'Profile picture must be a valid image',
-        })
       }
 
       const timestamp = Date.now()
