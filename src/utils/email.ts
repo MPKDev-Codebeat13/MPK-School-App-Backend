@@ -5,6 +5,7 @@ export const generateVerificationToken = (): string => {
   return crypto.randomBytes(32).toString('hex')
 }
 
+
 // Create SendGrid transporter
 export const createTransporter = () => {
   const sendGridKey = process.env.SENDGRID_API_KEY
