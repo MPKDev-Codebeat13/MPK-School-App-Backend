@@ -64,7 +64,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
 
       if (!allowedTypes.includes(file.mimetype)) {
         return reply.code(400).send({
-          error: 'Profile picture must be a valid image (JPEG, PNG, GIF, WebP)',
+          error: 'Profile picture must be a valid image',
         })
       }
 
