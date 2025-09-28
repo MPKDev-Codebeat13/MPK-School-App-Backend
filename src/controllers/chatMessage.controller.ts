@@ -35,7 +35,7 @@ export const getMessages = async (
   reply: FastifyReply
 ) => {
   try {
-    const { room, limit = 50, before } = request.query as any
+    const { room, limit = 50, before, withUser } = request.query as any
 
     const query: any = { room }
     if (before) {
@@ -48,10 +48,19 @@ export const getMessages = async (
     } else if (room === 'private') {
       // For private room, only show messages where user is sender or recipient
       const userId = new mongoose.Types.ObjectId((request as any).user.id)
-      query.$or = [
-        { sender: userId },
-        { recipients: { $in: [userId] } }
-      ]
+      if (withUser) {
+        // Filter for conversation between current user and withUser
+        const withUserId = new mongoose.Types.ObjectId(withUser)
+        query.$or = [
+          { sender: userId, recipients: { $in: [withUserId] } },
+          { sender: withUserId, recipients: { $in: [userId] } }
+        ]
+      } else {
+        query.$or = [
+          { sender: userId },
+          { recipients: { $in: [userId] } }
+        ]
+      }
     }
 
     const messages = await Message.find(query)
