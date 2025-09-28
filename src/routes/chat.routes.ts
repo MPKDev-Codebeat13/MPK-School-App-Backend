@@ -37,17 +37,17 @@ export default async function chatRoutes(fastify: FastifyInstance) {
 
         console.log('[DEBUG] Message found:', {
           messageId: message._id,
-          senderEmail: message.sender.email,
+          senderEmail: (message.sender as any).email,
         })
 
         // Allow delete if sender email matches user email or user is admin or teacher
         if (
-          message.sender.email !== request.user.email &&
+          (message.sender as any).email !== request.user.email &&
           request.user.role !== 'Admin' &&
           request.user.role !== 'Teacher'
         ) {
           console.log('[DEBUG] Unauthorized delete attempt:', {
-            messageSenderEmail: message.sender.email,
+            messageSenderEmail: (message.sender as any).email,
             requestUserEmail: request.user.email,
             userRole: request.user.role,
           })
