@@ -6,11 +6,11 @@ export const saveMessage = async (
   reply: FastifyReply
 ) => {
   try {
-    const { sender, content, timestamp, room, isPrivate, recipients, replyTo } =
+    const { content, timestamp, room, isPrivate, recipients, replyTo } =
       request.body as any
 
     const message = new Message({
-      sender,
+      sender: (request as any).user.id,
       content,
       timestamp,
       room,
@@ -40,7 +40,15 @@ export const getMessages = async (
     }
 
     const messages = await Message.find(query)
-      .populate('replyTo', 'sender content')
+      .populate('sender', '_id fullName email profilePicture')
+      .populate({
+        path: 'replyTo',
+        populate: {
+          path: 'sender',
+          select: '_id fullName email profilePicture',
+        },
+        select: 'content timestamp',
+      })
       .sort({ timestamp: -1 })
       .limit(Number(limit))
       .lean()

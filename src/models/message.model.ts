@@ -2,12 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IMessage extends Document {
   _id: mongoose.Types.ObjectId
-  sender: {
-    _id: mongoose.Types.ObjectId
-    fullName: string
-    email: string
-    profilePicture?: string
-  }
+  sender: mongoose.Types.ObjectId
   content: string
   timestamp: Date
   room: 'public' | 'private'
@@ -20,12 +15,7 @@ export interface IMessage extends Document {
 
 const messageSchema = new Schema<IMessage>(
   {
-    sender: {
-      _id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-      fullName: { type: String, required: true },
-      email: { type: String, required: true },
-      profilePicture: { type: String },
-    },
+    sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     content: {
       type: String,
       required: true,
@@ -62,7 +52,7 @@ const messageSchema = new Schema<IMessage>(
 
 // Index for efficient querying
 messageSchema.index({ room: 1, timestamp: -1 })
-messageSchema.index({ 'sender._id': 1, timestamp: -1 })
+messageSchema.index({ sender: 1, timestamp: -1 })
 
 const Message = mongoose.model<IMessage>('Message', messageSchema)
 

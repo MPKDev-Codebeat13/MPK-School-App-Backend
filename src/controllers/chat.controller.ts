@@ -6,7 +6,7 @@ export const getAllUsers = async (
   reply: FastifyReply
 ) => {
   try {
-    const users = await User.find({}, '_id fullName email')
+    const users = await User.find({}, '_id fullName email profilePicture')
     reply.send({ users })
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch users' })

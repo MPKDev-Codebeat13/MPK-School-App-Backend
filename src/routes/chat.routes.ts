@@ -28,7 +28,7 @@ export default async function chatRoutes(fastify: FastifyInstance) {
         })
 
         const Message = (await import('../models/message.model')).default
-        const message = await Message.findById(id)
+        const message = await Message.findById(id).populate('sender', 'email')
 
         if (!message) {
           console.log('[DEBUG] Message not found:', id)
@@ -37,19 +37,18 @@ export default async function chatRoutes(fastify: FastifyInstance) {
 
         console.log('[DEBUG] Message found:', {
           messageId: message._id,
-          senderId: message.sender._id,
-          senderIdString: message.sender._id.toString(),
+          senderEmail: message.sender.email,
         })
 
-        // Allow delete if sender is user or user is admin or teacher
+        // Allow delete if sender email matches user email or user is admin or teacher
         if (
-          message.sender._id.toString() !== request.user.id.toString() &&
+          message.sender.email !== request.user.email &&
           request.user.role !== 'Admin' &&
           request.user.role !== 'Teacher'
         ) {
           console.log('[DEBUG] Unauthorized delete attempt:', {
-            messageSender: message.sender._id.toString(),
-            requestUser: request.user.id,
+            messageSenderEmail: message.sender.email,
+            requestUserEmail: request.user.email,
             userRole: request.user.role,
           })
           return reply.code(403).send({ error: 'Unauthorized' })
@@ -61,12 +60,10 @@ export default async function chatRoutes(fastify: FastifyInstance) {
         reply.send({ message: 'Message deleted' })
       } catch (error) {
         console.error('[ERROR] Failed to delete message:', error)
-        reply
-          .code(500)
-          .send({
-            error: 'Failed to delete message',
-            details: (error as Error).message,
-          })
+        reply.code(500).send({
+          error: 'Failed to delete message',
+          details: (error as Error).message,
+        })
       }
     },
   })
