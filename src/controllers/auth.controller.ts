@@ -120,25 +120,9 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     const user = new User(userData)
     await user.save()
 
-    // Send verification email immediately during signup
-    try {
-      await sendVerificationEmail(user.email, verificationToken)
-      user.verificationEmailSent = true
-      await user.save()
-      console.log(
-        '[DEBUG] Verification email sent successfully to:',
-        user.email
-      )
-    } catch (emailError) {
-      const err = emailError as Error
-      console.error(
-        '[DEBUG] Failed to send verification email during signup:',
-        err
-      )
-      // Don't fail signup if email fails, but log it
-    }
-
     console.log('[DEBUG] [END] Signup controller: User created:', user.email)
+
+    // Send response immediately without waiting for email
     reply.code(201).send({
       message:
         'User created successfully. Please check your email to verify your account.',
@@ -152,6 +136,26 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
         subject,
         profilePicture,
       },
+    })
+
+    // Send verification email asynchronously after response is sent
+    setImmediate(async () => {
+      try {
+        await sendVerificationEmail(user.email, verificationToken)
+        user.verificationEmailSent = true
+        await user.save()
+        console.log(
+          '[DEBUG] Verification email sent successfully to:',
+          user.email
+        )
+      } catch (emailError) {
+        const err = emailError as Error
+        console.error(
+          '[DEBUG] Failed to send verification email during signup:',
+          err
+        )
+        // Email failed, but user was already created successfully
+      }
     })
   } catch (error) {
     console.error('[DEBUG] [ERROR] Signup controller:', error)
@@ -518,7 +522,7 @@ export const updateUser = async (
         return reply.code(400).send({ error: 'Invalid role' })
       }
       role = roleValue
-    }
+    }  
 
     if (body.grade) {
       let gradeValue = body.grade
