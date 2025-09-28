@@ -100,9 +100,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         grant_type: 'authorization_code',
         redirect_uri:
           process.env.GOOGLE_REDIRECT_URI ||
-          `${
-            process.env.SERVER_URL || 'http://localhost:4000'
-          }/api/auth/google/callback`,
+          'https://mym-nexus.onrender.com/api/auth/google/callback',
       })
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
