@@ -8,6 +8,8 @@ import * as jwt from 'jsonwebtoken'
 import {
   generateVerificationToken,
   sendVerificationEmail,
+  generateResetToken,
+  sendResetEmail,
 } from '../utils/email'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -518,11 +520,15 @@ export const updateUser = async (
       if (typeof body.role === 'object' && body.role.value) {
         roleValue = body.role.value
       }
-      if (!['Student', 'Teacher','Department', 'Parent', 'Admin'].includes(roleValue)) {
+      if (
+        !['Student', 'Teacher', 'Department', 'Parent', 'Admin'].includes(
+          roleValue
+        )
+      ) {
         return reply.code(400).send({ error: 'Invalid role' })
       }
       role = roleValue
-    }  
+    }
 
     if (body.grade) {
       let gradeValue = body.grade
@@ -661,5 +667,103 @@ export const deleteUser = async (
   } catch (error) {
     console.error('[DEBUG] [ERROR] deleteUser controller:', error)
     reply.code(500).send({ error: 'User deletion failed' })
+  }
+}
+
+export const forgotPassword = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    console.log('[DEBUG] [START] forgotPassword controller called')
+    const { email } = request.body as any
+
+    if (!email) {
+      return reply.code(400).send({ error: 'Email is required' })
+    }
+
+    const trimmedEmail = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return reply.code(400).send({ error: 'Invalid email format' })
+    }
+
+    const user = await User.findOne({ email: trimmedEmail })
+    if (!user) {
+      // For security, don't reveal if email exists
+      return reply.send({
+        message:
+          'If an account with that email exists, a reset link has been sent.',
+      })
+    }
+
+    // Generate reset token
+    const resetToken = generateResetToken()
+    user.resetPasswordToken = resetToken
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+    await user.save()
+
+    console.log('[DEBUG] Reset token generated for:', trimmedEmail)
+
+    // Send reset email asynchronously
+    setImmediate(async () => {
+      try {
+        await sendResetEmail(user.email, resetToken)
+        console.log('[DEBUG] Reset email sent successfully to:', user.email)
+      } catch (emailError) {
+        console.error('[DEBUG] Failed to send reset email:', emailError)
+      }
+    })
+
+    reply.send({
+      message:
+        'If an account with that email exists, a reset link has been sent.',
+    })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] forgotPassword controller:', error)
+    reply.code(500).send({ error: 'Forgot password failed' })
+  }
+}
+
+export const resetPassword = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    console.log('[DEBUG] [START] resetPassword controller called')
+    const { token, newPassword } = request.body as any
+
+    if (!token || !newPassword) {
+      return reply
+        .code(400)
+        .send({ error: 'Token and new password are required' })
+    }
+
+    if (newPassword.length < 6) {
+      return reply
+        .code(400)
+        .send({ error: 'Password must be at least 6 characters long' })
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    })
+
+    if (!user) {
+      return reply.code(400).send({ error: 'Invalid or expired reset token' })
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    user.password = hashedPassword
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpires = undefined
+    await user.save()
+
+    console.log('[DEBUG] [END] Password reset successfully for:', user.email)
+    reply.send({ message: 'Password reset successfully' })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] resetPassword controller:', error)
+    reply.code(500).send({ error: 'Password reset failed' })
   }
 }

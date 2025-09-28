@@ -7,6 +7,8 @@ import {
   changePassword,
   updateUser,
   deleteUser,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/auth.controller'
 import { authenticate } from '../middleware/auth'
 import * as jwt from 'jsonwebtoken'
@@ -273,4 +275,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
       reply.code(500).send({ error: 'Auto-verification failed' })
     }
   })
+
+  // Forgot password endpoint
+  fastify.post('/forgot-password', { handler: forgotPassword })
+
+  // Reset password endpoint
+  fastify.post('/reset-password', { handler: resetPassword })
 }
