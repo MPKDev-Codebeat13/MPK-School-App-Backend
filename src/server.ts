@@ -193,17 +193,28 @@ const startServer = async () => {
         socket.on('chatMessage', async (messageData: any) => {
           console.log('Received chatMessage:', messageData)
           try {
-            // Save message to database
+            // Save message to database using authenticated userId
             const message = new Message({
-              sender: messageData.sender,
+              sender: new mongoose.Types.ObjectId(userId),
               content: messageData.content,
               timestamp: messageData.timestamp,
               room: messageData.room,
               isPrivate: messageData.isPrivate,
-              recipients: messageData.recipients,
+              recipients: messageData.recipients ? messageData.recipients.map((r: string) => new mongoose.Types.ObjectId(r)) : undefined,
+              replyTo: messageData.replyTo ? new mongoose.Types.ObjectId(messageData.replyTo) : undefined,
             })
             await message.save()
             console.log('Message saved to DB:', message._id)
+
+            // Populate sender and replyTo for broadcast
+            await message.populate('sender', '_id fullName email profilePicture')
+            if (message.replyTo) {
+              await message.populate({
+                path: 'replyTo',
+                populate: { path: 'sender', select: '_id fullName email profilePicture' },
+                select: 'content timestamp sender'
+              })
+            }
 
             const savedMessage = message.toObject()
 
@@ -226,12 +237,6 @@ const startServer = async () => {
               // Also send to sender to update with _id
               ;(fastify as any).io
                 .to(socket.id)
-                .emit('chatMessage', savedMessage)
-            }
-          } catch (error) {
-            console.error('Error saving message:', error)
-          }
-        })
 
         socket.on(
           'deleteMessage',

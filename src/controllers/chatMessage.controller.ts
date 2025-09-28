@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import mongoose from 'mongoose'
 import Message from '../models/message.model'
 
 export const saveMessage = async (
@@ -10,13 +11,15 @@ export const saveMessage = async (
       request.body as any
 
     const message = new Message({
-      sender: (request as any).user.id,
+      sender: new mongoose.Types.ObjectId((request as any).user.id),
       content,
       timestamp,
       room,
       isPrivate,
-      recipients,
-      replyTo,
+      recipients: recipients
+        ? recipients.map((r: string) => new mongoose.Types.ObjectId(r))
+        : undefined,
+      replyTo: replyTo ? new mongoose.Types.ObjectId(replyTo) : undefined,
     })
 
     await message.save()
@@ -41,9 +44,10 @@ export const getMessages = async (
 
     // For private room, only show messages where user is sender or recipient
     if (room === 'private') {
+      const userId = new mongoose.Types.ObjectId((request as any).user.id)
       query.$or = [
-        { sender: (request as any).user.id },
-        { recipients: (request as any).user.id }
+        { sender: userId },
+        { recipients: userId }
       ]
     }
 
