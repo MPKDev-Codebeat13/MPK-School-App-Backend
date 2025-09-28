@@ -42,12 +42,15 @@ export const getMessages = async (
       query.timestamp = { $lt: new Date(before) }
     }
 
-    // For private room, only show messages where user is sender or recipient
-    if (room === 'private') {
+    // For public room, only show non-private messages
+    if (room === 'public') {
+      query.isPrivate = false
+    } else if (room === 'private') {
+      // For private room, only show messages where user is sender or recipient
       const userId = new mongoose.Types.ObjectId((request as any).user.id)
       query.$or = [
         { sender: userId },
-        { recipients: userId }
+        { recipients: { $in: [userId] } }
       ]
     }
 

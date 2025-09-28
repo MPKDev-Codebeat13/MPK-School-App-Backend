@@ -222,22 +222,17 @@ const startServer = async () => {
               ;(fastify as any).io
                 .to('public')
                 .emit('chatMessage', savedMessage)
-            } else if (
-              messageData.room === 'private' &&
-              messageData.recipients
-            ) {
-              messageData.recipients.forEach((recipientId: string) => {
-                const recipientSocketId = userSockets.get(recipientId)
-                if (recipientSocketId) {
+            } else if (messageData.room.startsWith('private-')) {
+              // For private rooms, emit to all participants
+              const roomParticipants = messageData.room.split('-').slice(1)
+              roomParticipants.forEach((participantId: string) => {
+                const participantSocketId = userSockets.get(participantId)
+                if (participantSocketId) {
                   ;(fastify as any).io
-                    .to(recipientSocketId)
+                    .to(participantSocketId)
                     .emit('chatMessage', savedMessage)
                 }
               })
-              // Also send to sender to update with _id
-              ;(fastify as any).io
-                .to(socket.id)
-                .emit('chatMessage', savedMessage)
             }
           } catch (error) {
             console.error('Error saving message:', error)
@@ -286,22 +281,19 @@ const startServer = async () => {
                   '[DEBUG] Broadcasting messageDeleted to public room'
                 )
                 socket.to('public').emit('messageDeleted', data.messageId)
-              } else if (data.room === 'private' && message.recipients) {
+              } else if (data.room.startsWith('private-')) {
                 console.log(
-                  '[DEBUG] Broadcasting messageDeleted to private recipients'
+                  '[DEBUG] Broadcasting messageDeleted to private room participants'
                 )
-                message.recipients.forEach(
-                  (recipientId: mongoose.Types.ObjectId) => {
-                    const recipientSocketId = userSockets.get(
-                      recipientId.toString()
-                    )
-                    if (recipientSocketId) {
-                      ;(fastify as any).io
-                        .to(recipientSocketId)
-                        .emit('messageDeleted', data.messageId)
-                    }
+                const roomParticipants = data.room.split('-').slice(1)
+                roomParticipants.forEach((participantId: string) => {
+                  const participantSocketId = userSockets.get(participantId)
+                  if (participantSocketId) {
+                    ;(fastify as any).io
+                      .to(participantSocketId)
+                      .emit('messageDeleted', data.messageId)
                   }
-                )
+                })
               }
             } catch (error) {
               console.error('Error deleting message:', error)
@@ -312,13 +304,16 @@ const startServer = async () => {
         socket.on('typing', (data: any) => {
           if (data.room === 'public') {
             socket.to('public').emit('userTyping', data.userId)
-          } else if (data.room === 'private' && data.recipients) {
-            data.recipients.forEach((recipientId: string) => {
-              const recipientSocketId = userSockets.get(recipientId.toString())
-              if (recipientSocketId) {
-                ;(fastify as any).io
-                  .to(recipientSocketId)
-                  .emit('userTyping', data.userId)
+          } else if (data.room.startsWith('private-')) {
+            const roomParticipants = data.room.split('-').slice(1)
+            roomParticipants.forEach((participantId: string) => {
+              if (participantId !== userId) { // Don't send to self
+                const participantSocketId = userSockets.get(participantId)
+                if (participantSocketId) {
+                  ;(fastify as any).io
+                    .to(participantSocketId)
+                    .emit('userTyping', data.userId)
+                }
               }
             })
           }
