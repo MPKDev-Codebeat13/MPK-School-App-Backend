@@ -39,6 +39,14 @@ export const getMessages = async (
       query.timestamp = { $lt: new Date(before) }
     }
 
+    // For private room, only show messages where user is sender or recipient
+    if (room === 'private') {
+      query.$or = [
+        { sender: (request as any).user.id },
+        { recipients: (request as any).user.id }
+      ]
+    }
+
     const messages = await Message.find(query)
       .populate('sender', '_id fullName email profilePicture')
       .populate({
