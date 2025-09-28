@@ -3,6 +3,7 @@ import {
   signup,
   login,
   getProfile,
+  checkVerificationStatus,
   resendVerificationEmail,
   changePassword,
   updateUser,
@@ -69,6 +70,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/profile', { preHandler: authenticate, handler: getProfile })
   fastify.get('/verify-email', { handler: verifyEmail })
   fastify.post('/resend-verification', { handler: resendVerificationEmail })
+  fastify.post('/check-verification-status', {
+    handler: checkVerificationStatus,
+  })
 
   // Google OAuth start
   fastify.get('/google', async (request, reply) => {

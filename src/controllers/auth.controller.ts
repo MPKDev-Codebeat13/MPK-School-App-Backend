@@ -128,7 +128,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     reply.code(201).send({
       message:
         'User created successfully. Please check your email to verify your account.',
-      redirectTo: '/check-email',
+      redirectTo: `/check-email?email=${encodeURIComponent(trimmedEmail)}`,
       user: {
         id: user._id,
         fullName: trimmedFullName,
@@ -303,6 +303,29 @@ export const getProfile = async (
   } catch (error) {
     console.error('[DEBUG] [ERROR] getProfile controller:', error)
     reply.code(500).send({ error: 'Profile fetch failed' })
+  }
+}
+
+export const checkVerificationStatus = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    const { email } = request.body as any
+
+    if (!email) {
+      return reply.code(400).send({ error: 'Email is required' })
+    }
+
+    const user = await User.findOne({ email })
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    reply.send({ isVerified: user.isVerified })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] checkVerificationStatus controller:', error)
+    reply.code(500).send({ error: 'Check verification status failed' })
   }
 }
 
