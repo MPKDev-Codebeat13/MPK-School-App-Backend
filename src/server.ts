@@ -237,6 +237,12 @@ const startServer = async () => {
               // Also send to sender to update with _id
               ;(fastify as any).io
                 .to(socket.id)
+                .emit('chatMessage', savedMessage)
+            }
+          } catch (error) {
+            console.error('Error saving message:', error)
+          }
+        })
 
         socket.on(
           'deleteMessage',
