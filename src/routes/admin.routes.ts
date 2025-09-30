@@ -10,6 +10,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
   fastify.get('/users', { preHandler: authenticate, handler: getAllUsers })
   fastify.get('/lesson-plans', {
     preHandler: authenticate,
+    compress: false,
     handler: getAllLessonPlans,
   })
   fastify.get('/attendances', {
