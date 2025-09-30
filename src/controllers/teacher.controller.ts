@@ -285,12 +285,15 @@ export async function getTeacherLessonPlans(
 ) {
   try {
     const user = (request as any).user
-    if (!user || user.role !== 'Teacher') {
+    if (!user) {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
     const { subject } = request.query as any
-    const query: any = { teacher: user.id }
+    const query: any = {}
+    if (user.role === 'Teacher') {
+      query.teacher = user.id
+    }
     if (subject && subject !== 'All') {
       query.subject = subject
     }
