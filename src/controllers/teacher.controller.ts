@@ -67,32 +67,47 @@ export async function generateAILessonPlan(
     let generatedContent: string | null = null
     let errorMessages: string[] = []
 
+    // Helper function to add timeout to promises
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+        ),
+      ])
+    }
+
     // Try OpenAI first
     if (process.env.OPENAI_API_KEY) {
       try {
         const openai = new OpenAI({
           apiKey: process.env.OPENAI_API_KEY,
         })
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are a helpful assistant that creates detailed lesson plans for teachers. Create a comprehensive lesson plan with objectives, materials, activities, and assessment.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          max_tokens: 1000,
-          temperature: 0.7,
-        })
-        generatedContent = completion.choices[0].message.content
+        const completion = await withTimeout(
+          openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a helpful assistant that creates detailed lesson plans for teachers. Create a comprehensive lesson plan with objectives, materials, activities, and assessment.',
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+          }),
+          20000 // 20 second timeout
+        )
+        generatedContent = completion.choices[0]?.message?.content || null
       } catch (error: any) {
         console.error('OpenAI failed:', error)
-        if (error.status === 429) {
+        if (error.message === 'Timeout') {
+          errorMessages.push('OpenAI: Request timed out')
+        } else if (error.status === 429) {
           errorMessages.push('OpenAI: Quota exceeded')
         } else {
           errorMessages.push(`OpenAI: ${error.message || 'Unknown error'}`)
@@ -106,7 +121,7 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.DEEPSEEK_API_KEY) {
         try {
-          const deepSeekResponse = await fetch(
+          const deepSeekPromise = fetch(
             'https://api.deepseek.com/v1/chat/completions',
             {
               method: 'POST',
@@ -127,32 +142,28 @@ export async function generateAILessonPlan(
                     content: prompt,
                   },
                 ],
-                max_tokens: 1000,
+                max_tokens: 500,
                 temperature: 0.7,
               }),
             }
-          )
-
-          if (deepSeekResponse.ok) {
-            const deepSeekData = await deepSeekResponse.json()
-            generatedContent = deepSeekData.choices[0].message.content
-          } else {
-            console.error(
-              'DeepSeek API error:',
-              deepSeekResponse.status,
-              deepSeekResponse.statusText
-            )
-            if (deepSeekResponse.status === 402) {
-              errorMessages.push('DeepSeek: Payment required')
-            } else {
-              errorMessages.push(
-                `DeepSeek: ${deepSeekResponse.status} ${deepSeekResponse.statusText}`
-              )
+          ).then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`API error: ${response.status} ${response.statusText}`)
             }
-          }
+            const data = await response.json()
+            return data.choices[0]?.message?.content || null
+          })
+
+          generatedContent = await withTimeout(deepSeekPromise, 20000)
         } catch (error: any) {
           console.error('DeepSeek failed:', error)
-          errorMessages.push(`DeepSeek: ${error.message || 'Unknown error'}`)
+          if (error.message === 'Timeout') {
+            errorMessages.push('DeepSeek: Request timed out')
+          } else if (error.message.includes('402')) {
+            errorMessages.push('DeepSeek: Payment required')
+          } else {
+            errorMessages.push(`DeepSeek: ${error.message || 'Unknown error'}`)
+          }
         }
       } else {
         errorMessages.push('DeepSeek API key not configured')
@@ -163,9 +174,7 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.HUGGINGFACE_API_KEY) {
         try {
-          // Use a text generation model that supports text generation, e.g. "gpt2" is not ideal for chat completions
-          // Adjusted to use the text generation endpoint properly
-          const response = await fetch(
+          const huggingFacePromise = fetch(
             'https://api-inference.huggingface.co/models/gpt2',
             {
               method: 'POST',
@@ -176,34 +185,31 @@ export async function generateAILessonPlan(
               body: JSON.stringify({
                 inputs: prompt,
                 parameters: {
-                  max_new_tokens: 1000,
+                  max_new_tokens: 500,
                   temperature: 0.7,
                 },
               }),
             }
-          )
+          ).then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`API error: ${response.status} ${response.statusText}`)
+            }
+            const data = await response.json()
+            if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
+              return data[0].generated_text
+            } else {
+              throw new Error('Invalid response format')
+            }
+          })
 
-          if (!response.ok) {
-            throw new Error(
-              `Hugging Face API error: ${response.status} ${response.statusText}`
-            )
-          }
-
-          const data = await response.json()
-          if (
-            Array.isArray(data) &&
-            data.length > 0 &&
-            data[0].generated_text
-          ) {
-            generatedContent = data[0].generated_text
-          } else {
-            throw new Error('Invalid response from Hugging Face API')
-          }
+          generatedContent = await withTimeout(huggingFacePromise, 20000)
         } catch (error: any) {
           console.error('Hugging Face failed:', error)
-          errorMessages.push(
-            `Hugging Face: ${error.message || 'Unknown error'}`
-          )
+          if (error.message === 'Timeout') {
+            errorMessages.push('Hugging Face: Request timed out')
+          } else {
+            errorMessages.push(`Hugging Face: ${error.message || 'Unknown error'}`)
+          }
         }
       } else {
         errorMessages.push('Hugging Face API key not configured')
@@ -214,16 +220,21 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.COHERE_API_KEY) {
         try {
-          const response = await cohere.generate({
+          const coherePromise = cohere.generate({
             model: 'command',
             prompt: prompt,
-            maxTokens: 1000,
+            maxTokens: 500,
             temperature: 0.7,
-          })
-          generatedContent = response.generations[0].text
+          }).then((response) => response.generations[0]?.text || null)
+
+          generatedContent = await withTimeout(coherePromise, 20000)
         } catch (error: any) {
           console.error('Cohere failed:', error)
-          errorMessages.push(`Cohere: ${error.message || 'Unknown error'}`)
+          if (error.message === 'Timeout') {
+            errorMessages.push('Cohere: Request timed out')
+          } else {
+            errorMessages.push(`Cohere: ${error.message || 'Unknown error'}`)
+          }
         }
       } else {
         errorMessages.push('Cohere API key not configured')
@@ -233,7 +244,7 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       return reply.code(500).send({
         error:
-          'All AI services are currently unavailable. Please try again later or contact support.',
+          'All AI services are currently unavailable or timed out. Please try again later or contact support.',
         details: errorMessages,
       })
     }
