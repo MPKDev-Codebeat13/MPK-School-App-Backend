@@ -301,7 +301,17 @@ export async function getTeacherLessonPlans(
     const lessonPlans = await LessonPlan.find(query)
       .sort({ createdAt: -1 })
       .lean()
-    reply.send({ lessonPlans })
+
+    // Truncate description for list view to reduce response size and prevent truncation
+    const truncatedLessonPlans = lessonPlans.map((plan) => ({
+      ...plan,
+      description:
+        plan.description.length > 500
+          ? plan.description.substring(0, 500) + '...'
+          : plan.description,
+    }))
+
+    reply.send({ lessonPlans: truncatedLessonPlans })
   } catch (error) {
     console.error('Error fetching teacher lesson plans:', error)
     reply.code(500).send({ error: 'Failed to fetch lesson plans' })
