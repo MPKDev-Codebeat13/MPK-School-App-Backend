@@ -89,14 +89,12 @@ const startServer = async () => {
       console.warn(
         `[WARN] Client disconnected prematurely for ${request.method} ${request.url}`
       )
-      // Send a response to avoid empty body
-      if (!reply.sent) {
-        reply.code(499).send({ error: 'Client disconnected' })
-      }
+      // Do not send response, let the handler finish
     } else {
       throw error
     }
   })
+
   try {
     console.log('[DEBUG] Registering multipart plugin...')
     await fastify.register(multipart, { attachFieldsToBody: true })
