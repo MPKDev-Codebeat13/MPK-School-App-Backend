@@ -302,6 +302,7 @@ export async function getTeacherLessonPlans(
       .select('title description subject grade type status createdAt')
       .sort({ createdAt: -1 })
       .limit(10)
+      .maxTimeMS(5000) // 5 second timeout for query
       .lean()
 
     // Truncate description for list view to reduce response size and prevent truncation
