@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth'
 async function parentRoutes(fastify: FastifyInstance) {
   fastify.post('/parent/ai-assistant', {
     preHandler: authenticate,
+    compress: false,
     handler: aiAssistantQuery,
   })
 }
