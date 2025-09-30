@@ -89,7 +89,10 @@ const startServer = async () => {
       console.warn(
         `[WARN] Client disconnected prematurely for ${request.method} ${request.url}`
       )
-      // Suppress the error by not re-throwing
+      // Send a response to avoid empty body
+      if (!reply.sent) {
+        reply.code(499).send({ error: 'Client disconnected' })
+      }
     } else {
       throw error
     }

@@ -67,14 +67,19 @@ export async function generateAILessonPlan(
     let generatedContent: string | null = null
     let errorMessages: string[] = []
 
-    // Helper function to add timeout to promises
-    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
-      return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), timeoutMs)
-        ),
-      ])
+    // Helper function to add timeout to promises with AbortController for fetch
+    const withTimeout = <T>(
+      promise: Promise<T>,
+      timeoutMs: number,
+      abortController?: AbortController
+    ): Promise<T> => {
+      const timeoutPromise = new Promise<T>((_, reject) =>
+        setTimeout(() => {
+          if (abortController) abortController.abort()
+          reject(new Error('Timeout'))
+        }, timeoutMs)
+      )
+      return Promise.race([promise, timeoutPromise])
     }
 
     // Try OpenAI first
@@ -100,7 +105,7 @@ export async function generateAILessonPlan(
             max_tokens: 500,
             temperature: 0.7,
           }),
-          20000 // 20 second timeout
+          10000 // 10 second timeout
         )
         generatedContent = completion.choices[0]?.message?.content || null
       } catch (error: any) {
@@ -121,6 +126,7 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.DEEPSEEK_API_KEY) {
         try {
+          const abortController = new AbortController()
           const deepSeekPromise = fetch(
             'https://api.deepseek.com/v1/chat/completions',
             {
@@ -145,19 +151,26 @@ export async function generateAILessonPlan(
                 max_tokens: 500,
                 temperature: 0.7,
               }),
+              signal: abortController.signal,
             }
           ).then(async (response) => {
             if (!response.ok) {
-              throw new Error(`API error: ${response.status} ${response.statusText}`)
+              throw new Error(
+                `API error: ${response.status} ${response.statusText}`
+              )
             }
             const data = await response.json()
             return data.choices[0]?.message?.content || null
           })
 
-          generatedContent = await withTimeout(deepSeekPromise, 20000)
+          generatedContent = await withTimeout(
+            deepSeekPromise,
+            20000,
+            abortController
+          )
         } catch (error: any) {
           console.error('DeepSeek failed:', error)
-          if (error.message === 'Timeout') {
+          if (error.message === 'Timeout' || error.name === 'AbortError') {
             errorMessages.push('DeepSeek: Request timed out')
           } else if (error.message.includes('402')) {
             errorMessages.push('DeepSeek: Payment required')
@@ -174,6 +187,7 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.HUGGINGFACE_API_KEY) {
         try {
+          const abortController = new AbortController()
           const huggingFacePromise = fetch(
             'https://api-inference.huggingface.co/models/gpt2',
             {
@@ -189,26 +203,39 @@ export async function generateAILessonPlan(
                   temperature: 0.7,
                 },
               }),
+              signal: abortController.signal,
             }
           ).then(async (response) => {
             if (!response.ok) {
-              throw new Error(`API error: ${response.status} ${response.statusText}`)
+              throw new Error(
+                `API error: ${response.status} ${response.statusText}`
+              )
             }
             const data = await response.json()
-            if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
+            if (
+              Array.isArray(data) &&
+              data.length > 0 &&
+              data[0].generated_text
+            ) {
               return data[0].generated_text
             } else {
               throw new Error('Invalid response format')
             }
           })
 
-          generatedContent = await withTimeout(huggingFacePromise, 20000)
+          generatedContent = await withTimeout(
+            huggingFacePromise,
+            20000,
+            abortController
+          )
         } catch (error: any) {
           console.error('Hugging Face failed:', error)
-          if (error.message === 'Timeout') {
+          if (error.message === 'Timeout' || error.name === 'AbortError') {
             errorMessages.push('Hugging Face: Request timed out')
           } else {
-            errorMessages.push(`Hugging Face: ${error.message || 'Unknown error'}`)
+            errorMessages.push(
+              `Hugging Face: ${error.message || 'Unknown error'}`
+            )
           }
         }
       } else {
@@ -220,12 +247,14 @@ export async function generateAILessonPlan(
     if (!generatedContent) {
       if (process.env.COHERE_API_KEY) {
         try {
-          const coherePromise = cohere.generate({
-            model: 'command',
-            prompt: prompt,
-            maxTokens: 500,
-            temperature: 0.7,
-          }).then((response) => response.generations[0]?.text || null)
+          const coherePromise = cohere
+            .generate({
+              model: 'command',
+              prompt: prompt,
+              maxTokens: 500,
+              temperature: 0.7,
+            })
+            .then((response) => response.generations[0]?.text || null)
 
           generatedContent = await withTimeout(coherePromise, 20000)
         } catch (error: any) {
