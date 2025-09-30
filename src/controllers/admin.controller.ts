@@ -33,11 +33,30 @@ export async function getAllLessonPlans(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    const lessonPlans = await LessonPlan.find({})
-      .populate('teacher', 'fullName email')
-      .lean()
+    const { page, limit } = request.query as { page?: number; limit?: number }
+    const pageNum = typeof page === 'number' && page > 0 ? page : 1
+    const limitNum = typeof limit === 'number' && limit > 0 ? limit : 50
+    const skip = (pageNum - 1) * limitNum
 
-    reply.send({ lessonPlans })
+    const [lessonPlans, total] = await Promise.all([
+      LessonPlan.find({})
+        .populate('teacher', 'fullName email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      LessonPlan.countDocuments({}),
+    ])
+
+    reply.send({
+      lessonPlans,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    })
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plans' })
   }
@@ -54,9 +73,7 @@ export async function getAllAttendances(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    const attendances = await Attendance.find({})
-      .populate('babysitter', 'fullName email')
-      .lean()
+    const attendances = await Attendance.find({}).lean()
 
     reply.send({ attendances })
   } catch (error) {
