@@ -82,52 +82,56 @@ export async function generateAILessonPlan(
       return Promise.race([promise, timeoutPromise])
     }
 
-    // Try OpenAI first
+    // Prepare all AI service promises
+    const aiPromises: Promise<{ content: string | null; service: string }>[] =
+      []
+
+    // OpenAI
     if (process.env.OPENAI_API_KEY) {
-      try {
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        })
-        const completion = await withTimeout(
-          openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a helpful assistant that creates detailed lesson plans for teachers. Create a comprehensive lesson plan with objectives, materials, activities, and assessment.',
-              },
-              {
-                role: 'user',
-                content: prompt,
-              },
-            ],
-            max_tokens: 500,
-            temperature: 0.7,
-          }),
-          10000 // 10 second timeout
-        )
-        generatedContent = completion.choices[0]?.message?.content || null
-      } catch (error: any) {
-        console.error('OpenAI failed:', error)
-        if (error.message === 'Timeout') {
-          errorMessages.push('OpenAI: Request timed out')
-        } else if (error.status === 429) {
-          errorMessages.push('OpenAI: Quota exceeded')
-        } else {
-          errorMessages.push(`OpenAI: ${error.message || 'Unknown error'}`)
+      const openaiPromise = (async () => {
+        try {
+          const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+          })
+          const completion = await withTimeout(
+            openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content:
+                    'You are a helpful assistant that creates detailed lesson plans for teachers. Create a comprehensive lesson plan with objectives, materials, activities, and assessment.',
+                },
+                {
+                  role: 'user',
+                  content: prompt,
+                },
+              ],
+              max_tokens: 500,
+              temperature: 0.7,
+            }),
+            15000 // 15 second timeout
+          )
+          return {
+            content: completion.choices[0]?.message?.content || null,
+            service: 'OpenAI',
+          }
+        } catch (error: any) {
+          console.error('OpenAI failed:', error)
+          return { content: null, service: 'OpenAI' }
         }
-      }
+      })()
+      aiPromises.push(openaiPromise)
     } else {
       errorMessages.push('OpenAI API key not configured')
     }
 
-    // If OpenAI failed or not configured, try DeepSeek
-    if (!generatedContent) {
-      if (process.env.DEEPSEEK_API_KEY) {
+    // DeepSeek
+    if (process.env.DEEPSEEK_API_KEY) {
+      const deepSeekPromise = (async () => {
         try {
           const abortController = new AbortController()
-          const deepSeekPromise = fetch(
+          const promise = fetch(
             'https://api.deepseek.com/v1/chat/completions',
             {
               method: 'POST',
@@ -163,32 +167,24 @@ export async function generateAILessonPlan(
             return data.choices[0]?.message?.content || null
           })
 
-          generatedContent = await withTimeout(
-            deepSeekPromise,
-            20000,
-            abortController
-          )
+          const content = await withTimeout(promise, 15000, abortController)
+          return { content, service: 'DeepSeek' }
         } catch (error: any) {
           console.error('DeepSeek failed:', error)
-          if (error.message === 'Timeout' || error.name === 'AbortError') {
-            errorMessages.push('DeepSeek: Request timed out')
-          } else if (error.message.includes('402')) {
-            errorMessages.push('DeepSeek: Payment required')
-          } else {
-            errorMessages.push(`DeepSeek: ${error.message || 'Unknown error'}`)
-          }
+          return { content: null, service: 'DeepSeek' }
         }
-      } else {
-        errorMessages.push('DeepSeek API key not configured')
-      }
+      })()
+      aiPromises.push(deepSeekPromise)
+    } else {
+      errorMessages.push('DeepSeek API key not configured')
     }
 
-    // If DeepSeek failed or not configured, try Hugging Face
-    if (!generatedContent) {
-      if (process.env.HUGGINGFACE_API_KEY) {
+    // Hugging Face
+    if (process.env.HUGGINGFACE_API_KEY) {
+      const huggingFacePromise = (async () => {
         try {
           const abortController = new AbortController()
-          const huggingFacePromise = fetch(
+          const promise = fetch(
             'https://api-inference.huggingface.co/models/gpt2',
             {
               method: 'POST',
@@ -223,50 +219,56 @@ export async function generateAILessonPlan(
             }
           })
 
-          generatedContent = await withTimeout(
-            huggingFacePromise,
-            20000,
-            abortController
-          )
+          const content = await withTimeout(promise, 15000, abortController)
+          return { content, service: 'Hugging Face' }
         } catch (error: any) {
           console.error('Hugging Face failed:', error)
-          if (error.message === 'Timeout' || error.name === 'AbortError') {
-            errorMessages.push('Hugging Face: Request timed out')
-          } else {
-            errorMessages.push(
-              `Hugging Face: ${error.message || 'Unknown error'}`
-            )
-          }
+          return { content: null, service: 'Hugging Face' }
         }
-      } else {
-        errorMessages.push('Hugging Face API key not configured')
-      }
+      })()
+      aiPromises.push(huggingFacePromise)
+    } else {
+      errorMessages.push('Hugging Face API key not configured')
     }
 
-    // If Hugging Face failed or not configured, try Cohere
-    if (!generatedContent) {
-      if (process.env.COHERE_API_KEY) {
+    // Cohere
+    if (process.env.COHERE_API_KEY) {
+      const coherePromise = (async () => {
         try {
-          const coherePromise = cohere
-            .generate({
+          const promise = cohere
+            .chat({
               model: 'command',
-              prompt: prompt,
+              message: prompt,
               maxTokens: 500,
               temperature: 0.7,
             })
-            .then((response) => response.generations[0]?.text || null)
+            .then((response) => response.text || null)
 
-          generatedContent = await withTimeout(coherePromise, 20000)
+          const content = await withTimeout(promise, 15000)
+          return { content, service: 'Cohere' }
         } catch (error: any) {
           console.error('Cohere failed:', error)
-          if (error.message === 'Timeout') {
-            errorMessages.push('Cohere: Request timed out')
-          } else {
-            errorMessages.push(`Cohere: ${error.message || 'Unknown error'}`)
+          return { content: null, service: 'Cohere' }
+        }
+      })()
+      aiPromises.push(coherePromise)
+    } else {
+      errorMessages.push('Cohere API key not configured')
+    }
+
+    // Wait for the first successful result
+    if (aiPromises.length > 0) {
+      try {
+        const results = await Promise.allSettled(aiPromises)
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.content) {
+            generatedContent = result.value.content
+            console.log(`AI generation succeeded with ${result.value.service}`)
+            break
           }
         }
-      } else {
-        errorMessages.push('Cohere API key not configured')
+      } catch (error) {
+        console.error('Error in parallel AI calls:', error)
       }
     }
 
