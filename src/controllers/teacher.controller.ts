@@ -228,17 +228,13 @@ export async function generateAILessonPlan(
       })
     }
 
-    const lessonPlan = {
+    reply.send({
+      message: 'AI lesson plan generated successfully',
       title: `AI Generated Lesson Plan - ${topic}`,
       description: generatedContent.trim(),
       subject,
       grade,
       type: 'ai',
-    }
-
-    reply.send({
-      message: 'AI lesson plan generated successfully',
-      lessonPlan,
     })
   } catch (error) {
     console.error('Error generating AI lesson plan:', error)
