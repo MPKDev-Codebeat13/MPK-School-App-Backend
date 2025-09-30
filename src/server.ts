@@ -29,6 +29,7 @@ import fastifySocketIO from 'fastify-socket.io'
 import * as jwt from 'jsonwebtoken'
 import { Socket } from 'socket.io'
 import mongoose from 'mongoose'
+import { Writable } from 'stream'
 
 import * as path from 'path'
 import * as fs from 'fs'
@@ -43,8 +44,20 @@ import parentRoutes from './routes/parent.routes'
 import homeworkRoutes from './routes/homework.routes'
 import Message from './models/message.model'
 
+// Custom logger stream to filter out 'premature close' errors
+const filterStream = new Writable({
+  write(chunk, encoding, callback) {
+    const msg = chunk.toString()
+    if (msg.includes('"msg":"premature close"')) return callback()
+    process.stdout.write(chunk, encoding, callback)
+  },
+})
+
 const fastify = Fastify({
-  logger: process.env.NODE_ENV === 'production' ? require('pino')() : true,
+  logger:
+    process.env.NODE_ENV === 'production'
+      ? require('pino')({ level: 'info' }, filterStream)
+      : true,
   disableRequestLogging: false,
   requestTimeout: 60000, // 60 second timeout for AI requests
   connectionTimeout: 30000, // 30 second connection timeout
@@ -68,6 +81,18 @@ process.on('SIGTERM', async () => {
 const startServer = async () => {
   fastify.addHook('onRequest', async (request, reply) => {
     console.log(`[DEBUG] Incoming request: ${request.method} ${request.url}`)
+  })
+
+  // Handle premature close errors gracefully
+  fastify.addHook('onError', (request, reply, error) => {
+    if (error.message === 'premature close') {
+      console.warn(
+        `[WARN] Client disconnected prematurely for ${request.method} ${request.url}`
+      )
+      // Suppress the error by not re-throwing
+    } else {
+      throw error
+    }
   })
   try {
     console.log('[DEBUG] Registering multipart plugin...')
