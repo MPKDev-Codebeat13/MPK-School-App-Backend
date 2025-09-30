@@ -171,7 +171,7 @@ export async function generateAILessonPlan(
         try {
           const response = await withTimeout(
             cohere.chat({
-              model: 'command-r', // ✅ Updated model
+              model: 'command-r-light', // ✅ Updated model
               message: prompt,
               maxTokens: 500,
               temperature: 0.7,
