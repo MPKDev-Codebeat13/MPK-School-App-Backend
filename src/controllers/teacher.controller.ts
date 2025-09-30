@@ -301,15 +301,15 @@ export async function getTeacherLessonPlans(
     const lessonPlans = await LessonPlan.find(query)
       .select('title description subject grade type status createdAt')
       .sort({ createdAt: -1 })
-      .limit(20)
+      .limit(10)
       .lean()
 
     // Truncate description for list view to reduce response size and prevent truncation
     const truncatedLessonPlans = lessonPlans.map((plan) => ({
       ...plan,
       description:
-        plan.description.length > 500
-          ? plan.description.substring(0, 500) + '...'
+        plan.description.length > 200
+          ? plan.description.substring(0, 200) + '...'
           : plan.description,
     }))
 
