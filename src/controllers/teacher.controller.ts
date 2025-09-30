@@ -185,7 +185,7 @@ export async function generateAILessonPlan(
         try {
           const promise = cohere
             .chat({
-              model: 'command-r',
+              model: 'command-r-plus',
               message: prompt,
               maxTokens: 500,
               temperature: 0.7,
@@ -228,28 +228,18 @@ export async function generateAILessonPlan(
       })
     }
 
-    if (!request.raw.aborted) {
-      // Create lesson plan record
-      const lessonPlan = new LessonPlan({
-        title: `AI Generated Lesson Plan - ${topic}`,
-        description: generatedContent.trim(),
-        subject,
-        grade,
-        teacher: user.id,
-        type: 'ai',
-      })
-
-      await lessonPlan.save()
-
-      reply.send({
-        message: 'AI lesson plan generated successfully',
-        lessonPlan,
-      })
-    } else {
-      console.warn(
-        'Client disconnected before response, not saving lesson plan'
-      )
+    const lessonPlan = {
+      title: `AI Generated Lesson Plan - ${topic}`,
+      description: generatedContent.trim(),
+      subject,
+      grade,
+      type: 'ai',
     }
+
+    reply.send({
+      message: 'AI lesson plan generated successfully',
+      lessonPlan,
+    })
   } catch (error) {
     console.error('Error generating AI lesson plan:', error)
     reply.code(500).send({ error: 'Failed to generate AI lesson plan' })
