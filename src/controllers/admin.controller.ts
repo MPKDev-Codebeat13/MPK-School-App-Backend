@@ -39,6 +39,12 @@ export async function getAllLessonPlans(
       return reply.code(499).send({ error: 'Client closed request' })
     }
 
+    // Remove this check to avoid premature close error
+    // if (request.raw.aborted) {
+    //   console.log('[DEBUG] Request aborted before sending response')
+    //   return reply.code(499).send({ error: 'Client closed request' })
+    // }
+
     const { page, limit } = request.query as { page?: string; limit?: string }
     console.log('[DEBUG] Query params:', { page, limit })
 
@@ -72,12 +78,6 @@ export async function getAllLessonPlans(
       'total:',
       total
     )
-
-    // Check again if client aborted before sending response
-    if (request.raw.aborted) {
-      console.log('[DEBUG] Request aborted before sending response')
-      return reply.code(499).send({ error: 'Client closed request' })
-    }
 
     reply.send({
       lessonPlans,
