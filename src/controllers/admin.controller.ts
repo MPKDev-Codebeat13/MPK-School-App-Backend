@@ -33,20 +33,51 @@ export async function getAllLessonPlans(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    const { page, limit } = request.query as { page?: number; limit?: number }
-    const pageNum = typeof page === 'number' && page > 0 ? page : 1
-    const limitNum = typeof limit === 'number' && limit > 0 ? limit : 50
+    // Check if client aborted the request
+    if (request.raw.aborted) {
+      console.log('[DEBUG] Request aborted by client')
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
+
+    const { page, limit } = request.query as { page?: string; limit?: string }
+    console.log('[DEBUG] Query params:', { page, limit })
+
+    let pageNum = page ? parseInt(page, 10) : 1
+    let limitNum = limit ? parseInt(limit, 10) : 50
+    if (pageNum <= 0) pageNum = 1
+    if (limitNum <= 0 || limitNum > 100) limitNum = 50 // Cap limit to prevent large responses
     const skip = (pageNum - 1) * limitNum
 
-    const [lessonPlans, total] = await Promise.all([
-      LessonPlan.find({})
-        .populate('teacher', 'fullName email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      LessonPlan.countDocuments({}),
-    ])
+    console.log('[DEBUG] Parsed pagination:', { pageNum, limitNum, skip })
+
+    let lessonPlans, total
+    try {
+      ;[lessonPlans, total] = await Promise.all([
+        LessonPlan.find({})
+          .populate('teacher', 'fullName email')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limitNum)
+          .lean(),
+        LessonPlan.countDocuments({}),
+      ])
+    } catch (dbError) {
+      console.error('[DEBUG] Database error:', dbError)
+      return reply.code(500).send({ error: 'Database error' })
+    }
+
+    console.log(
+      '[DEBUG] Fetched lesson plans:',
+      lessonPlans.length,
+      'total:',
+      total
+    )
+
+    // Check again if client aborted before sending response
+    if (request.raw.aborted) {
+      console.log('[DEBUG] Request aborted before sending response')
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
 
     reply.send({
       lessonPlans,
@@ -58,6 +89,7 @@ export async function getAllLessonPlans(
       },
     })
   } catch (error) {
+    console.error('[DEBUG] Unexpected error in getAllLessonPlans:', error)
     reply.code(500).send({ error: 'Failed to fetch lesson plans' })
   }
 }
