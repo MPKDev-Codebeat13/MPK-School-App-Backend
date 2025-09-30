@@ -46,7 +46,7 @@ import Message from './models/message.model'
 const fastify = Fastify({
   logger: process.env.NODE_ENV === 'production' ? require('pino')() : true,
   disableRequestLogging: false,
-  requestTimeout: 30000, // 30 second timeout
+  requestTimeout: 60000, // 60 second timeout for AI requests
   connectionTimeout: 30000, // 30 second connection timeout
 })
 
@@ -131,7 +131,7 @@ const startServer = async () => {
       status: 'ok',
       env: process.env.NODE_ENV || 'development',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime()
+      uptime: process.uptime(),
     }))
     fastify.setNotFoundHandler((_req, reply) => {
       console.log('[DEBUG] 404 Not Found:', _req.url)
@@ -200,19 +200,31 @@ const startServer = async () => {
               timestamp: messageData.timestamp,
               room: messageData.room,
               isPrivate: messageData.isPrivate,
-              recipients: messageData.recipients ? messageData.recipients.map((r: string) => new mongoose.Types.ObjectId(r)) : undefined,
-              replyTo: messageData.replyTo ? new mongoose.Types.ObjectId(messageData.replyTo) : undefined,
+              recipients: messageData.recipients
+                ? messageData.recipients.map(
+                    (r: string) => new mongoose.Types.ObjectId(r)
+                  )
+                : undefined,
+              replyTo: messageData.replyTo
+                ? new mongoose.Types.ObjectId(messageData.replyTo)
+                : undefined,
             })
             await message.save()
             console.log('Message saved to DB:', message._id)
 
             // Populate sender and replyTo for broadcast
-            await message.populate('sender', '_id fullName email profilePicture')
+            await message.populate(
+              'sender',
+              '_id fullName email profilePicture'
+            )
             if (message.replyTo) {
               await message.populate({
                 path: 'replyTo',
-                populate: { path: 'sender', select: '_id fullName email profilePicture' },
-                select: 'content timestamp sender'
+                populate: {
+                  path: 'sender',
+                  select: '_id fullName email profilePicture',
+                },
+                select: 'content timestamp sender',
               })
             }
 
@@ -307,7 +319,8 @@ const startServer = async () => {
           } else if (data.room.startsWith('private-')) {
             const roomParticipants = data.room.split('-').slice(1)
             roomParticipants.forEach((participantId: string) => {
-              if (participantId !== userId) { // Don't send to self
+              if (participantId !== userId) {
+                // Don't send to self
                 const participantSocketId = userSockets.get(participantId)
                 if (participantSocketId) {
                   ;(fastify as any).io

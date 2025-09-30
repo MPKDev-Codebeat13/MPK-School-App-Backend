@@ -15,25 +15,36 @@ export const aiAssistantQuery = async (
   request: FastifyRequest<{ Body: AiAssistantRequest }>,
   reply: FastifyReply
 ) => {
+  const user = (request as any).user
+  if (!user || user.role !== 'Student') {
+    return reply.code(403).send({ error: 'Forbidden' })
+  }
+
+  const { question } = request.body
+
+  if (!question || question.trim() === '') {
+    return reply.code(400).send({ error: 'Question is required' })
+  }
+
+  const prompt = question.trim()
+  const systemPrompt =
+    'You are a helpful AI assistant for students, helping with homework, explaining concepts, providing study tips, and answering school-related questions.'
+
+  let generatedContent: string | null = null
+  let errorMessages: string[] = []
+
+  // Listen for premature close or abort events on the request
+  let requestAborted = false
+  request.raw.on('close', () => {
+    requestAborted = true
+    console.warn('Request stream closed prematurely')
+  })
+  request.raw.on('aborted', () => {
+    requestAborted = true
+    console.warn('Request aborted by client')
+  })
+
   try {
-    const user = (request as any).user
-    if (!user || user.role !== 'Student') {
-      return reply.code(403).send({ error: 'Forbidden' })
-    }
-
-    const { question } = request.body
-
-    if (!question || question.trim() === '') {
-      return reply.code(400).send({ error: 'Question is required' })
-    }
-
-    const prompt = question.trim()
-    const systemPrompt =
-      'You are a helpful AI assistant for students, helping with homework, explaining concepts, providing study tips, and answering school-related questions.'
-
-    let generatedContent: string | null = null
-    let errorMessages: string[] = []
-
     // Try OpenAI first
     if (process.env.OPENAI_API_KEY) {
       try {
@@ -193,6 +204,11 @@ export const aiAssistantQuery = async (
       }
     }
 
+    if (requestAborted) {
+      console.warn('Request aborted before AI response could be sent')
+      return
+    }
+
     if (!generatedContent) {
       return reply.code(500).send({
         error:
@@ -216,6 +232,8 @@ export const aiAssistantQuery = async (
     })
   } catch (error) {
     console.error('Error generating AI response:', error)
-    reply.code(500).send({ error: 'Failed to generate AI response' })
+    if (!requestAborted) {
+      reply.code(500).send({ error: 'Failed to generate AI response' })
+    }
   }
 }
