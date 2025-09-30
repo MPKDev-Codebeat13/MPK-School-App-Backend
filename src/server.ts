@@ -86,10 +86,8 @@ const startServer = async () => {
   // Handle premature close errors gracefully
   fastify.addHook('onError', (request, reply, error) => {
     if (error.message === 'premature close') {
-      console.warn(
-        `[WARN] Client disconnected prematurely for ${request.method} ${request.url}`
-      )
-      // Do not send response, let the handler finish
+      // Suppress premature close errors completely, no logging
+      return
     } else {
       throw error
     }

@@ -107,10 +107,10 @@ export async function generateAILessonPlan(
                   content: prompt,
                 },
               ],
-              max_tokens: 500,
+              max_tokens: 1000,
               temperature: 0.7,
             }),
-            15000 // 15 second timeout
+            30000 // 30 second timeout
           )
           return {
             content: completion.choices[0]?.message?.content || null,
@@ -167,7 +167,7 @@ export async function generateAILessonPlan(
             return data.choices[0]?.message?.content || null
           })
 
-          const content = await withTimeout(promise, 15000, abortController)
+          const content = await withTimeout(promise, 30000, abortController)
           return { content, service: 'DeepSeek' }
         } catch (error: any) {
           console.error('DeepSeek failed:', error)
@@ -179,72 +179,20 @@ export async function generateAILessonPlan(
       errorMessages.push('DeepSeek API key not configured')
     }
 
-    // Hugging Face
-    if (process.env.HUGGINGFACE_API_KEY) {
-      const huggingFacePromise = (async () => {
-        try {
-          const abortController = new AbortController()
-          const promise = fetch(
-            'https://api-inference.huggingface.co/models/gpt2',
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                inputs: prompt,
-                parameters: {
-                  max_new_tokens: 500,
-                  temperature: 0.7,
-                },
-              }),
-              signal: abortController.signal,
-            }
-          ).then(async (response) => {
-            if (!response.ok) {
-              throw new Error(
-                `API error: ${response.status} ${response.statusText}`
-              )
-            }
-            const data = await response.json()
-            if (
-              Array.isArray(data) &&
-              data.length > 0 &&
-              data[0].generated_text
-            ) {
-              return data[0].generated_text
-            } else {
-              throw new Error('Invalid response format')
-            }
-          })
-
-          const content = await withTimeout(promise, 15000, abortController)
-          return { content, service: 'Hugging Face' }
-        } catch (error: any) {
-          console.error('Hugging Face failed:', error)
-          return { content: null, service: 'Hugging Face' }
-        }
-      })()
-      aiPromises.push(huggingFacePromise)
-    } else {
-      errorMessages.push('Hugging Face API key not configured')
-    }
-
     // Cohere
     if (process.env.COHERE_API_KEY) {
       const coherePromise = (async () => {
         try {
           const promise = cohere
             .chat({
-              model: 'command',
+              model: 'command-r',
               message: prompt,
               maxTokens: 500,
               temperature: 0.7,
             })
             .then((response) => response.text || null)
 
-          const content = await withTimeout(promise, 15000)
+          const content = await withTimeout(promise, 30000)
           return { content, service: 'Cohere' }
         } catch (error: any) {
           console.error('Cohere failed:', error)
@@ -272,7 +220,7 @@ export async function generateAILessonPlan(
       }
     }
 
-    if (!generatedContent) {
+    if (!generatedContent || !generatedContent.trim()) {
       return reply.code(500).send({
         error:
           'All AI services are currently unavailable or timed out. Please try again later or contact support.',
@@ -280,22 +228,28 @@ export async function generateAILessonPlan(
       })
     }
 
-    // Create lesson plan record
-    const lessonPlan = new LessonPlan({
-      title: `AI Generated Lesson Plan - ${topic}`,
-      description: generatedContent,
-      subject,
-      grade,
-      teacher: user.id,
-      type: 'ai',
-    })
+    if (!request.raw.aborted) {
+      // Create lesson plan record
+      const lessonPlan = new LessonPlan({
+        title: `AI Generated Lesson Plan - ${topic}`,
+        description: generatedContent.trim(),
+        subject,
+        grade,
+        teacher: user.id,
+        type: 'ai',
+      })
 
-    await lessonPlan.save()
+      await lessonPlan.save()
 
-    reply.send({
-      message: 'AI lesson plan generated successfully',
-      lessonPlan,
-    })
+      reply.send({
+        message: 'AI lesson plan generated successfully',
+        lessonPlan,
+      })
+    } else {
+      console.warn(
+        'Client disconnected before response, not saving lesson plan'
+      )
+    }
   } catch (error) {
     console.error('Error generating AI lesson plan:', error)
     reply.code(500).send({ error: 'Failed to generate AI lesson plan' })
