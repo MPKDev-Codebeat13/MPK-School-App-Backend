@@ -299,7 +299,9 @@ export async function getTeacherLessonPlans(
     }
 
     const lessonPlans = await LessonPlan.find(query)
+      .select('title description subject grade type status createdAt')
       .sort({ createdAt: -1 })
+      .limit(20)
       .lean()
 
     // Truncate description for list view to reduce response size and prevent truncation
