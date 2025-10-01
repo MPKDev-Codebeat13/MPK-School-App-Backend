@@ -499,11 +499,6 @@ export const changePassword = async (
   }
 }
 
-const normalizeRole = (role: string): IUser['role'] => {
-  return (role.charAt(0).toUpperCase() +
-    role.slice(1).toLowerCase()) as IUser['role']
-}
-
 export const updateUser = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -555,7 +550,7 @@ export const updateUser = async (
       ) {
         return reply.code(400).send({ error: 'Invalid role' })
       }
-      role = normalizeRole(roleValue)
+      role = roleValue
     }
 
     if (body.grade) {
