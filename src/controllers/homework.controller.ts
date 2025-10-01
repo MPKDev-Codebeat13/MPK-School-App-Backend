@@ -34,57 +34,64 @@ export const aiAssistantQuery = async (
   let generatedContent: string | null = null
   let errorMessages: string[] = []
 
-  // Listen for premature close or abort events on the request
-  let requestAborted = false
-  request.raw.on('close', () => {
-    requestAborted = true
-    console.warn('Request stream closed prematurely')
-  })
-  request.raw.on('aborted', () => {
-    requestAborted = true
-    console.warn('Request aborted by client')
-  })
+  const withTimeout = <T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    abortController?: AbortController
+  ): Promise<T> => {
+    const timeoutPromise = new Promise<T>((_, reject) =>
+      setTimeout(() => {
+        if (abortController) abortController.abort()
+        reject(new Error('Timeout'))
+      }, timeoutMs)
+    )
+    return Promise.race([promise, timeoutPromise])
+  }
 
   try {
-    // Try OpenAI first
+    const aiPromises: Promise<{ content: string | null; service: string }>[] =
+      []
+
+    // --- OpenAI ---
     if (process.env.OPENAI_API_KEY) {
-      try {
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        })
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt,
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          max_tokens: 1000,
-          temperature: 0.7,
-        })
-        generatedContent = completion.choices[0].message.content
-      } catch (error: any) {
-        console.error('OpenAI failed:', error)
-        if (error.status === 429) {
-          errorMessages.push('OpenAI: Quota exceeded')
-        } else {
-          errorMessages.push(`OpenAI: ${error.message || 'Unknown error'}`)
+      const openaiPromise = (async () => {
+        try {
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+          const completion = await withTimeout(
+            openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content: systemPrompt,
+                },
+                { role: 'user', content: prompt },
+              ],
+              max_tokens: 1000,
+              temperature: 0.7,
+            }),
+            30000
+          )
+          return {
+            content: completion.choices[0]?.message?.content || null,
+            service: 'OpenAI',
+          }
+        } catch (error: any) {
+          console.error('OpenAI failed:', error.message || error)
+          return { content: null, service: 'OpenAI' }
         }
-      }
+      })()
+      aiPromises.push(openaiPromise)
     } else {
       errorMessages.push('OpenAI API key not configured')
     }
 
-    // If OpenAI failed or not configured, try DeepSeek
-    if (!generatedContent) {
-      if (process.env.DEEPSEEK_API_KEY) {
+    // --- DeepSeek ---
+    if (process.env.DEEPSEEK_API_KEY) {
+      const deepSeekPromise = (async () => {
         try {
-          const deepSeekResponse = await fetch(
+          const abortController = new AbortController()
+          const promise = fetch(
             'https://api.deepseek.com/v1/chat/completions',
             {
               method: 'POST',
@@ -99,121 +106,73 @@ export const aiAssistantQuery = async (
                     role: 'system',
                     content: systemPrompt,
                   },
-                  {
-                    role: 'user',
-                    content: prompt,
-                  },
+                  { role: 'user', content: prompt },
                 ],
-                max_tokens: 1000,
+                max_tokens: 500,
                 temperature: 0.7,
               }),
+              signal: abortController.signal,
             }
-          )
-
-          if (deepSeekResponse.ok) {
-            const deepSeekData = await deepSeekResponse.json()
-            generatedContent = deepSeekData.choices[0].message.content
-          } else {
-            console.error(
-              'DeepSeek API error:',
-              deepSeekResponse.status,
-              deepSeekResponse.statusText
-            )
-            if (deepSeekResponse.status === 402) {
-              errorMessages.push('DeepSeek: Payment required')
-            } else {
-              errorMessages.push(
-                `DeepSeek: ${deepSeekResponse.status} ${deepSeekResponse.statusText}`
-              )
+          ).then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`API error: ${response.status}`)
             }
-          }
-        } catch (error: any) {
-          console.error('DeepSeek failed:', error)
-          errorMessages.push(`DeepSeek: ${error.message || 'Unknown error'}`)
-        }
-      } else {
-        errorMessages.push('DeepSeek API key not configured')
-      }
-    }
-
-    // If DeepSeek failed or not configured, try Hugging Face
-    if (!generatedContent) {
-      if (process.env.HUGGINGFACE_API_KEY) {
-        try {
-          const response = await fetch(
-            'https://api-inference.huggingface.co/models/gpt2',
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                inputs: prompt,
-                parameters: {
-                  max_new_tokens: 1000,
-                  temperature: 0.7,
-                },
-              }),
-            }
-          )
-
-          if (!response.ok) {
-            throw new Error(
-              `Hugging Face API error: ${response.status} ${response.statusText}`
-            )
-          }
-
-          const data = await response.json()
-          if (
-            Array.isArray(data) &&
-            data.length > 0 &&
-            data[0].generated_text
-          ) {
-            generatedContent = data[0].generated_text
-          } else {
-            throw new Error('Invalid response from Hugging Face API')
-          }
-        } catch (error: any) {
-          console.error('Hugging Face failed:', error)
-          errorMessages.push(
-            `Hugging Face: ${error.message || 'Unknown error'}`
-          )
-        }
-      } else {
-        errorMessages.push('Hugging Face API key not configured')
-      }
-    }
-
-    // If Hugging Face failed or not configured, try Cohere
-    if (!generatedContent) {
-      if (process.env.COHERE_API_KEY) {
-        try {
-          const response = await cohere.generate({
-            model: 'command',
-            prompt: `${systemPrompt}\n\n${prompt}`,
-            maxTokens: 1000,
-            temperature: 0.7,
+            const data = await response.json()
+            return data.choices[0]?.message?.content || null
           })
-          generatedContent = response.generations[0].text
+
+          const content = await withTimeout(promise, 30000, abortController)
+          return { content, service: 'DeepSeek' }
         } catch (error: any) {
-          console.error('Cohere failed:', error)
-          errorMessages.push(`Cohere: ${error.message || 'Unknown error'}`)
+          console.error('DeepSeek failed:', error.message || error)
+          return { content: null, service: 'DeepSeek' }
         }
-      } else {
-        errorMessages.push('Cohere API key not configured')
+      })()
+      aiPromises.push(deepSeekPromise)
+    } else {
+      errorMessages.push('DeepSeek API key not configured')
+    }
+
+    // --- Cohere ---
+    if (process.env.COHERE_API_KEY) {
+      const coherePromise = (async () => {
+        try {
+          const response = await withTimeout(
+            cohere.chat({
+              model: 'command-r-light',
+              message: prompt,
+              maxTokens: 500,
+              temperature: 0.7,
+            }),
+            30000
+          )
+          return { content: response.text || null, service: 'Cohere' }
+        } catch (error: any) {
+          console.error('Cohere failed:', error.message || error)
+          return { content: null, service: 'Cohere' }
+        }
+      })()
+      aiPromises.push(coherePromise)
+    } else {
+      errorMessages.push('Cohere API key not configured')
+    }
+
+    // --- Resolve ---
+    if (aiPromises.length > 0) {
+      const results = await Promise.allSettled(aiPromises)
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.content) {
+          generatedContent = result.value.content
+          console.log(`✅ AI generation succeeded with ${result.value.service}`)
+          break
+        }
       }
     }
 
-    if (requestAborted) {
-      console.warn('Request aborted before AI response could be sent')
-      return
-    }
-
-    if (!generatedContent) {
+    if (!generatedContent || !generatedContent.trim()) {
       return reply.code(500).send({
         error:
-          'All AI services are currently unavailable. Please try again later or contact support.',
+          'All AI services failed or timed out. Try again later or check API keys.',
         details: errorMessages,
       })
     }
@@ -233,8 +192,6 @@ export const aiAssistantQuery = async (
     })
   } catch (error) {
     console.error('Error generating AI response:', error)
-    if (!requestAborted) {
-      reply.code(500).send({ error: 'Failed to generate AI response' })
-    }
+    reply.code(500).send({ error: 'Failed to generate AI response' })
   }
 }
