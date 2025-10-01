@@ -140,7 +140,7 @@ export const aiAssistantQuery = async (
           try {
             const response = await withTimeout(
               cohere.chat({
-                model: 'command-r-light',
+                model: 'command',
                 message: prompt,
                 maxTokens: 500,
                 temperature: 0.7,
@@ -192,6 +192,8 @@ export const aiAssistantQuery = async (
       })
       await aiResponse.save()
 
+      // Disable compression for this response to prevent connection issues
+      reply.header('Content-Encoding', 'identity')
       reply.send({
         message: 'AI response generated successfully',
         answer: truncatedContent,
