@@ -161,6 +161,12 @@ const startServer = async () => {
       console.log('[DEBUG] 404 Not Found:', _req.url)
       reply.code(404).send({ error: 'Route not found' })
     })
+
+    // Global error handler to ensure all errors return JSON
+    fastify.setErrorHandler((error, request, reply) => {
+      console.error('Unhandled error:', error)
+      reply.code(500).send({ error: 'Internal server error' })
+    })
     const port = 4000
     console.log('[DEBUG] Server port:', port)
 
