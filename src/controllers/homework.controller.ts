@@ -140,8 +140,8 @@ export const aiAssistantQuery = async (
           try {
             const response = await withTimeout(
               cohere.chat({
-                model: 'command',
-                message: prompt,
+                model: 'command-r-plus',
+                message: `${systemPrompt}\n\n${prompt}`,
                 maxTokens: 500,
                 temperature: 0.7,
               }),
@@ -183,20 +183,22 @@ export const aiAssistantQuery = async (
       // Limit answer length to prevent parsing issues
       const truncatedContent = generatedContent.substring(0, 1000)
 
-      // Save the response to database
+      // Disable compression for this response to prevent connection issues
+      reply.header('Content-Encoding', 'identity')
+      reply.send({
+        message: 'AI response generated successfully',
+        answer: truncatedContent,
+      })
+
+      // Save the response to database asynchronously to avoid delaying the response
       const aiResponse = new AiResponse({
         userId: user.id,
         question: prompt,
         answer: truncatedContent,
         apiUsed: 'AI Service', // Since we don't track which one succeeded, use generic
       })
-      await aiResponse.save()
-
-      // Disable compression for this response to prevent connection issues
-      reply.header('Content-Encoding', 'identity')
-      reply.send({
-        message: 'AI response generated successfully',
-        answer: truncatedContent,
+      aiResponse.save().catch((error) => {
+        console.error('Error saving AI response to database:', error)
       })
     } catch (error) {
       console.error('Error generating AI response:', error)
