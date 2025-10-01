@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import User from '../models/user.model'
+import User, { IUser } from '../models/user.model'
 import LessonPlan from '../models/lessonPlan.model'
 import Message from '../models/message.model'
 import AiResponse from '../models/aiResponse.model'
@@ -107,7 +107,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       fullName: trimmedFullName,
       email: trimmedEmail,
       password,
-      role,
+      role: role as IUser['role'],
       grade,
       profilePicture,
       verificationToken,
@@ -499,8 +499,9 @@ export const changePassword = async (
   }
 }
 
-const normalizeRole = (role: string): string => {
-  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+const normalizeRole = (role: string): IUser['role'] => {
+  return (role.charAt(0).toUpperCase() +
+    role.slice(1).toLowerCase()) as IUser['role']
 }
 
 export const updateUser = async (
@@ -631,7 +632,7 @@ export const updateUser = async (
     if (fullName !== user.fullName) user.fullName = fullName
     if (profilePicture !== user.profilePicture)
       user.profilePicture = profilePicture
-    if (role !== user.role) user.role = role
+    if (role !== user.role) user.role = role as IUser['role']
     if (grade !== user.grade) user.grade = grade
     if (subject !== user.subject) user.subject = subject
 
