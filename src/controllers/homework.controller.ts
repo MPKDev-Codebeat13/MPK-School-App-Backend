@@ -16,7 +16,8 @@ export const aiAssistantQuery = async (
   reply: FastifyReply
 ) => {
   const user = (request as any).user
-  if (!user || user.role.toLowerCase() !== 'student') {
+  const allowedRoles = ['student', 'parent', 'teacher']
+  if (!user || !allowedRoles.includes(user.role.toLowerCase())) {
     return reply.code(403).send({ error: 'Forbidden' })
   }
 
