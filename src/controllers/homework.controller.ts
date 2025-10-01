@@ -181,7 +181,7 @@ export const aiAssistantQuery = async (
       }
 
       // Limit answer length to prevent parsing issues
-      const truncatedContent = generatedContent.substring(0, 2000)
+      const truncatedContent = generatedContent.substring(0, 1000)
 
       // Save the response to database
       const aiResponse = new AiResponse({
