@@ -180,18 +180,21 @@ export const aiAssistantQuery = async (
         })
       }
 
+      // Limit answer length to prevent parsing issues
+      const truncatedContent = generatedContent.substring(0, 2000)
+
       // Save the response to database
       const aiResponse = new AiResponse({
         userId: user.id,
         question: prompt,
-        answer: generatedContent,
+        answer: truncatedContent,
         apiUsed: 'AI Service', // Since we don't track which one succeeded, use generic
       })
       await aiResponse.save()
 
       reply.send({
         message: 'AI response generated successfully',
-        answer: generatedContent,
+        answer: truncatedContent,
       })
     } catch (error) {
       console.error('Error generating AI response:', error)
