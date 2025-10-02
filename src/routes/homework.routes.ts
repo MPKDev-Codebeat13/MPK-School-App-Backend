@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth'
 async function homeworkRoutes(fastify: FastifyInstance) {
   fastify.post('/homework/chat', {
     preHandler: authenticate,
+    compress: false,
     handler: aiAssistantQuery,
   })
 }
