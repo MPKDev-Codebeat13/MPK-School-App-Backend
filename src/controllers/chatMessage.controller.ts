@@ -48,30 +48,22 @@ export const getMessages = async (
 ) => {
   try {
     const { room, limit = 50, before, withUser } = request.query as any
+    console.log('[DEBUG] getMessages called:', {
+      room,
+      limit,
+      before,
+      withUser,
+      user: (request as any).user,
+    })
 
     const query: any = { room }
     if (before) {
       query.timestamp = { $lt: new Date(before) }
     }
 
-    // For public room, only show non-private messages
-    if (room === 'public') {
-      query.isPrivate = false
-    } else if (room === 'private') {
-      // For private room, only show messages where user is sender or recipient
-      const userId = new mongoose.Types.ObjectId((request as any).user.id)
-      if (withUser) {
-        // Filter for conversation between current user and withUser
-        const withUserId = new mongoose.Types.ObjectId(withUser)
-        query.$or = [
-          { sender: userId, recipients: { $in: [withUserId] } },
-          { sender: withUserId, recipients: { $in: [userId] } },
-        ]
-      } else {
-        query.$or = [{ sender: userId }, { recipients: { $in: [userId] } }]
-      }
-    }
+    // Simplified: just query by room, no private/public distinction
 
+    console.log('[DEBUG] Query:', query)
     const messages = await Message.find(query)
       .populate('sender', '_id fullName email profilePicture')
       .populate({
@@ -86,9 +78,13 @@ export const getMessages = async (
       .limit(Number(limit))
       .lean()
 
+    console.log('[DEBUG] Found messages:', messages.length)
     // Return messages in ascending order (oldest first)
-    reply.send(messages.reverse())
+    const result = messages.reverse()
+    console.log('[DEBUG] Returning messages:', result.length)
+    reply.send(result)
   } catch (error) {
+    console.error('[ERROR] getMessages error:', error)
     reply.code(500).send({ error: 'Failed to fetch messages' })
   }
 }
