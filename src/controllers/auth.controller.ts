@@ -544,7 +544,7 @@ export const updateUser = async (
         roleValue = body.role.value
       }
       if (
-        !['Student', 'Teacher', 'Department', 'Parent', 'Admin'].includes(
+        !['Student', 'Teacher', 'Department', 'Parent', 'Admin', 'Babysitter'].includes(
           roleValue
         )
       ) {
