@@ -24,6 +24,18 @@ export const saveMessage = async (
 
     await message.save()
 
+    await message.populate('sender', '_id fullName email profilePicture')
+    if (message.replyTo) {
+      await message.populate({
+        path: 'replyTo',
+        populate: {
+          path: 'sender',
+          select: '_id fullName email profilePicture',
+        },
+        select: 'content timestamp',
+      })
+    }
+
     reply.code(201).send({ message })
   } catch (error) {
     reply.code(500).send({ error: 'Failed to save message' })
@@ -53,13 +65,10 @@ export const getMessages = async (
         const withUserId = new mongoose.Types.ObjectId(withUser)
         query.$or = [
           { sender: userId, recipients: { $in: [withUserId] } },
-          { sender: withUserId, recipients: { $in: [userId] } }
+          { sender: withUserId, recipients: { $in: [userId] } },
         ]
       } else {
-        query.$or = [
-          { sender: userId },
-          { recipients: { $in: [userId] } }
-        ]
+        query.$or = [{ sender: userId }, { recipients: { $in: [userId] } }]
       }
     }
 
