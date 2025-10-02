@@ -17,7 +17,7 @@ export const aiAssistantQuery = async (
 ) => {
   try {
     const user = (request as any).user
-    if (!user || user.role !== 'student') {
+    if (!user || user.role !== 'Student') {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
