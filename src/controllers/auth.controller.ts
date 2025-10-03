@@ -116,7 +116,14 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
 
     // Only set subject for roles that require it
     if (role === 'Teacher' || role === 'Department') {
-      userData.subject = subject
+      // Map subject values to updated names
+      let mappedSubject = subject
+      if (subject === 'Computer Science') {
+        mappedSubject = 'IT'
+      } else if (subject === 'Physical Education') {
+        mappedSubject = 'HPE'
+      }
+      userData.subject = mappedSubject
     }
 
     const user = new User(userData)
@@ -544,9 +551,14 @@ export const updateUser = async (
         roleValue = body.role.value
       }
       if (
-        !['Student', 'Teacher', 'Department', 'Parent', 'Admin', 'Babysitter'].includes(
-          roleValue
-        )
+        ![
+          'Student',
+          'Teacher',
+          'Department',
+          'Parent',
+          'Admin',
+          'Babysitter',
+        ].includes(roleValue)
       ) {
         return reply.code(400).send({ error: 'Invalid role' })
       }
@@ -577,6 +589,12 @@ export const updateUser = async (
         (typeof subjectValue !== 'string' || subjectValue.length > 50)
       ) {
         return reply.code(400).send({ error: 'Invalid subject' })
+      }
+      // Map subject values to updated names
+      if (subjectValue === 'Computer Science') {
+        subjectValue = 'IT'
+      } else if (subjectValue === 'Physical Education') {
+        subjectValue = 'HPE'
       }
       subject = subjectValue
     }
