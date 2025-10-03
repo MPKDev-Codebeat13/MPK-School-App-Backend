@@ -61,6 +61,11 @@ export const getMessages = async (
       query.timestamp = { $lt: new Date(before) }
     }
 
+    // Exclude messages deleted for the current user
+    query.$nor = [
+      { deletedFor: new mongoose.Types.ObjectId((request as any).user.id) },
+    ]
+
     // Simplified: just query by room, no private/public distinction
 
     console.log('[DEBUG] Query:', query)
@@ -86,5 +91,39 @@ export const getMessages = async (
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     reply.code(500).send({ error: 'Failed to fetch messages' })
+  }
+}
+
+export const deleteMessageForMe = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    const { messageId } = request.params as any
+    const userId = (request as any).user.id
+
+    const message = await Message.findById(messageId)
+    if (!message) {
+      return reply.code(404).send({ error: 'Message not found' })
+    }
+
+    // Check if user is the sender
+    if (message.sender.toString() !== userId) {
+      return reply
+        .code(403)
+        .send({ error: 'You can only delete your own messages' })
+    }
+
+    // Add user to deletedFor array if not already present
+    if (!message.deletedFor?.includes(new mongoose.Types.ObjectId(userId))) {
+      message.deletedFor = message.deletedFor || []
+      message.deletedFor.push(new mongoose.Types.ObjectId(userId))
+      await message.save()
+    }
+
+    reply.send({ success: true })
+  } catch (error) {
+    console.error('[ERROR] deleteMessageForMe error:', error)
+    reply.code(500).send({ error: 'Failed to delete message for you' })
   }
 }

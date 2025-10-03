@@ -9,6 +9,7 @@ export interface IMessage extends Document {
   isPrivate: boolean
   recipients?: mongoose.Types.ObjectId[]
   replyTo?: mongoose.Types.ObjectId
+  deletedFor?: mongoose.Types.ObjectId[]
   createdAt: Date
   updatedAt: Date
 }
@@ -44,6 +45,12 @@ const messageSchema = new Schema<IMessage>(
       type: Schema.Types.ObjectId,
       ref: 'Message',
     },
+    deletedFor: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,

@@ -67,4 +67,45 @@ export default async function chatRoutes(fastify: FastifyInstance) {
       }
     },
   })
+
+  fastify.put('/chat/messages/deleteForMe/:messageId', {
+    preHandler: authenticate,
+    handler: async (request: any, reply: any) => {
+      try {
+        const { messageId } = request.params
+        const userId = request.user.id
+
+        const Message = (await import('../models/message.model')).default
+        const message = await Message.findById(messageId)
+
+        if (!message) {
+          console.log('[DEBUG] Message not found:', messageId)
+          return reply.code(404).send({ error: 'Message not found' })
+        }
+
+        if (message.sender.toString() !== userId) {
+          console.log(
+            '[DEBUG] Unauthorized deleteForMe attempt by user:',
+            userId
+          )
+          return reply.code(403).send({ error: 'Unauthorized' })
+        }
+
+        if (!message.deletedFor) {
+          message.deletedFor = []
+        }
+
+        if (!message.deletedFor.includes(userId)) {
+          message.deletedFor.push(userId)
+          await message.save()
+          console.log('[DEBUG] Message marked deleted for user:', userId)
+        }
+
+        reply.send({ success: true })
+      } catch (error) {
+        console.error('[ERROR] Failed to delete message for user:', error)
+        reply.code(500).send({ error: 'Failed to delete message for you' })
+      }
+    },
+  })
 }
