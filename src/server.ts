@@ -86,7 +86,11 @@ const startServer = async () => {
   // Handle premature close errors gracefully
   fastify.addHook('onError', (request, reply, error) => {
     if (error.message === 'premature close') {
-      // Suppress premature close errors completely, no logging
+      console.log('[DEBUG] Premature close detected for request:', request.url)
+      // If reply not sent, send a generic response
+      if (!reply.sent) {
+        reply.code(500).send({ error: 'Request interrupted' })
+      }
       return
     } else {
       throw error

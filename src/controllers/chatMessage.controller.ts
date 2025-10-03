@@ -47,6 +47,7 @@ export const getMessages = async (
   request: FastifyRequest,
   reply: FastifyReply
 ) => {
+  let sent = false
   try {
     const { room, limit = 50, before, withUser } = request.query as any
     const currentUserId = (request as any).user.id
@@ -55,7 +56,7 @@ export const getMessages = async (
       limit,
       before,
       withUser,
-      user: (request as any).user,
+      userId: currentUserId,
     })
 
     const query: any = { room }
@@ -66,6 +67,7 @@ export const getMessages = async (
     // Exclude messages deleted for the current user
     query.$nor = [{ deletedFor: new mongoose.Types.ObjectId(currentUserId) }]
 
+    console.log('[DEBUG] Executing query:', query)
     const messages = await Message.find(query)
       .populate('sender', '_id fullName email profilePicture')
       .populate({
@@ -82,48 +84,66 @@ export const getMessages = async (
 
     console.log('[DEBUG] Found messages:', messages.length)
 
-    // Map messages safely
-    const result = messages.reverse().map((msg: any, index: number) => {
-      const senderId = msg.sender?._id?.toString() || null
-      const isCurrentUser = senderId === currentUserId
+    // Map messages safely with error handling
+    let result: any[] = []
+    try {
+      result = messages
+        .reverse()
+        .map((msg: any, index: number) => {
+          try {
+            const senderId = msg.sender?._id?.toString() || null
+            const isCurrentUser = senderId === currentUserId
 
-      return {
-        ...msg,
-        _id: msg._id.toString(),
-        sender: msg.sender
-          ? {
-              ...msg.sender,
-              _id: msg.sender._id.toString(),
-            }
-          : null,
-        replyTo: msg.replyTo
-          ? {
-              ...msg.replyTo,
-              _id: msg.replyTo._id.toString(),
-              sender: msg.replyTo.sender
+            return {
+              ...msg,
+              _id: msg._id.toString(),
+              sender: msg.sender
                 ? {
-                    ...msg.replyTo.sender,
-                    _id: msg.replyTo.sender._id.toString(),
+                    ...msg.sender,
+                    _id: msg.sender._id.toString(),
                   }
                 : null,
+              replyTo: msg.replyTo
+                ? {
+                    ...msg.replyTo,
+                    _id: msg.replyTo._id.toString(),
+                    sender: msg.replyTo.sender
+                      ? {
+                          ...msg.replyTo.sender,
+                          _id: msg.replyTo.sender._id.toString(),
+                        }
+                      : null,
+                  }
+                : undefined,
+              recipients: msg.recipients
+                ? msg.recipients.map((r: any) => r.toString())
+                : msg.recipients,
+              deletedFor: msg.deletedFor
+                ? msg.deletedFor.map((d: any) => d.toString())
+                : msg.deletedFor,
+              // Optional: left/right bubble for UI
+              position: isCurrentUser ? 'right' : 'left',
             }
-          : undefined,
-        recipients: msg.recipients
-          ? msg.recipients.map((r: any) => r.toString())
-          : msg.recipients,
-        deletedFor: msg.deletedFor
-          ? msg.deletedFor.map((d: any) => d.toString())
-          : msg.deletedFor,
-        // Optional: left/right bubble for UI
-        position: isCurrentUser ? 'right' : 'left',
-      }
-    })
+          } catch (mapError) {
+            console.error('[ERROR] Error mapping message:', msg._id, mapError)
+            return null // Skip problematic message
+          }
+        })
+        .filter((msg) => msg !== null)
+    } catch (mapError) {
+      console.error('[ERROR] Error in message mapping:', mapError)
+      result = []
+    }
 
     console.log('[DEBUG] Returning messages:', result.length)
+    sent = true
     reply.send({ messages: result })
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
-    reply.code(500).send({ error: 'Failed to fetch messages' })
+    if (!sent) {
+      sent = true
+      reply.code(500).send({ error: 'Failed to fetch messages' })
+    }
   }
 }
 
