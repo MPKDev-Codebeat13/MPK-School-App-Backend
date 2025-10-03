@@ -114,7 +114,9 @@ export const getMessages = async (
         : msg.deletedFor,
     }))
     console.log('[DEBUG] Returning messages:', result.length)
-    reply.send({ messages: result })
+    const jsonString = JSON.stringify({ messages: result })
+    console.log('[DEBUG] Sending JSON length:', jsonString.length)
+    reply.header('Content-Type', 'application/json').send(jsonString)
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     reply.code(500).send({ error: 'Failed to fetch messages' })
