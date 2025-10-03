@@ -136,8 +136,19 @@ export const getMessages = async (
     }
 
     console.log('[DEBUG] Returning messages:', result.length)
-    sent = true
-    reply.send({ messages: result })
+    try {
+      sent = true
+      reply.send({ messages: result })
+    } catch (sendError: any) {
+      if (sendError.message && sendError.message.includes('premature close')) {
+        console.log(
+          '[INFO] Client disconnected prematurely during response send'
+        )
+      } else {
+        console.error('[ERROR] Error sending messages response:', sendError)
+        throw sendError
+      }
+    }
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     if (!sent) {
