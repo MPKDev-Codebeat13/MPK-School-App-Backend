@@ -106,6 +106,12 @@ export const getMessages = async (
               : null,
           }
         : undefined,
+      recipients: msg.recipients
+        ? msg.recipients.map((r: any) => r.toString())
+        : msg.recipients,
+      deletedFor: msg.deletedFor
+        ? msg.deletedFor.map((d: any) => d.toString())
+        : msg.deletedFor,
     }))
     console.log('[DEBUG] Returning messages:', result.length)
     reply.send({ messages: result })
