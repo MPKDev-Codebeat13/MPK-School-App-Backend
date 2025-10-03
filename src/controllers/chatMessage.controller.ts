@@ -82,7 +82,7 @@ export const getMessages = async (
     // Return messages in ascending order (oldest first)
     const result = messages.reverse()
     console.log('[DEBUG] Returning messages:', result.length)
-    reply.send(result)
+    reply.send({ messages: result })
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     reply.code(500).send({ error: 'Failed to fetch messages' })
