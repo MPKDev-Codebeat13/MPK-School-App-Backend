@@ -88,18 +88,22 @@ export const getMessages = async (
     const result = messages.reverse().map((msg: any) => ({
       ...msg,
       _id: msg._id.toString(),
-      sender: {
-        ...msg.sender,
-        _id: msg.sender._id.toString(),
-      },
+      sender: msg.sender
+        ? {
+            ...msg.sender,
+            _id: msg.sender._id.toString(),
+          }
+        : null,
       replyTo: msg.replyTo
         ? {
             ...msg.replyTo,
             _id: msg.replyTo._id.toString(),
-            sender: {
-              ...msg.replyTo.sender,
-              _id: msg.replyTo.sender._id.toString(),
-            },
+            sender: msg.replyTo.sender
+              ? {
+                  ...msg.replyTo.sender,
+                  _id: msg.replyTo.sender._id.toString(),
+                }
+              : null,
           }
         : undefined,
     }))
