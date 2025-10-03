@@ -38,6 +38,7 @@ export const saveMessage = async (
 
     reply.code(201).send({ message })
   } catch (error) {
+    console.error('[ERROR] saveMessage error:', error)
     reply.code(500).send({ error: 'Failed to save message' })
   }
 }
@@ -48,6 +49,7 @@ export const getMessages = async (
 ) => {
   try {
     const { room, limit = 50, before, withUser } = request.query as any
+    const currentUserId = (request as any).user.id
     console.log('[DEBUG] getMessages called:', {
       room,
       limit,
@@ -62,13 +64,8 @@ export const getMessages = async (
     }
 
     // Exclude messages deleted for the current user
-    query.$nor = [
-      { deletedFor: new mongoose.Types.ObjectId((request as any).user.id) },
-    ]
+    query.$nor = [{ deletedFor: new mongoose.Types.ObjectId(currentUserId) }]
 
-    // Simplified: just query by room, no private/public distinction
-
-    console.log('[DEBUG] Query:', query)
     const messages = await Message.find(query)
       .populate('sender', '_id fullName email profilePicture')
       .populate({
@@ -84,39 +81,46 @@ export const getMessages = async (
       .lean()
 
     console.log('[DEBUG] Found messages:', messages.length)
-    // Return messages in ascending order (oldest first)
-    const result = messages.reverse().map((msg: any) => ({
-      ...msg,
-      _id: msg._id.toString(),
-      sender: msg.sender
-        ? {
-            ...msg.sender,
-            _id: msg.sender._id.toString(),
-          }
-        : null,
-      replyTo: msg.replyTo
-        ? {
-            ...msg.replyTo,
-            _id: msg.replyTo._id.toString(),
-            sender: msg.replyTo.sender
-              ? {
-                  ...msg.replyTo.sender,
-                  _id: msg.replyTo.sender._id.toString(),
-                }
-              : null,
-          }
-        : undefined,
-      recipients: msg.recipients
-        ? msg.recipients.map((r: any) => r.toString())
-        : msg.recipients,
-      deletedFor: msg.deletedFor
-        ? msg.deletedFor.map((d: any) => d.toString())
-        : msg.deletedFor,
-    }))
+
+    // Map messages safely
+    const result = messages.reverse().map((msg: any, index: number) => {
+      const senderId = msg.sender?._id?.toString() || null
+      const isCurrentUser = senderId === currentUserId
+
+      return {
+        ...msg,
+        _id: msg._id.toString(),
+        sender: msg.sender
+          ? {
+              ...msg.sender,
+              _id: msg.sender._id.toString(),
+            }
+          : null,
+        replyTo: msg.replyTo
+          ? {
+              ...msg.replyTo,
+              _id: msg.replyTo._id.toString(),
+              sender: msg.replyTo.sender
+                ? {
+                    ...msg.replyTo.sender,
+                    _id: msg.replyTo.sender._id.toString(),
+                  }
+                : null,
+            }
+          : undefined,
+        recipients: msg.recipients
+          ? msg.recipients.map((r: any) => r.toString())
+          : msg.recipients,
+        deletedFor: msg.deletedFor
+          ? msg.deletedFor.map((d: any) => d.toString())
+          : msg.deletedFor,
+        // Optional: left/right bubble for UI
+        position: isCurrentUser ? 'right' : 'left',
+      }
+    })
+
     console.log('[DEBUG] Returning messages:', result.length)
-    const jsonString = JSON.stringify({ messages: result })
-    console.log('[DEBUG] Sending JSON length:', jsonString.length)
-    reply.header('Content-Type', 'application/json').send(jsonString)
+    reply.send({ messages: result })
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     reply.code(500).send({ error: 'Failed to fetch messages' })
@@ -136,14 +140,13 @@ export const deleteMessageForMe = async (
       return reply.code(404).send({ error: 'Message not found' })
     }
 
-    // Check if user is the sender
+    // Only sender can delete
     if (message.sender.toString() !== userId) {
       return reply
         .code(403)
         .send({ error: 'You can only delete your own messages' })
     }
 
-    // Add user to deletedFor array if not already present
     if (!message.deletedFor?.includes(new mongoose.Types.ObjectId(userId))) {
       message.deletedFor = message.deletedFor || []
       message.deletedFor.push(new mongoose.Types.ObjectId(userId))
