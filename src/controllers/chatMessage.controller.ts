@@ -85,7 +85,24 @@ export const getMessages = async (
 
     console.log('[DEBUG] Found messages:', messages.length)
     // Return messages in ascending order (oldest first)
-    const result = messages.reverse()
+    const result = messages.reverse().map((msg: any) => ({
+      ...msg,
+      _id: msg._id.toString(),
+      sender: {
+        ...msg.sender,
+        _id: msg.sender._id.toString(),
+      },
+      replyTo: msg.replyTo
+        ? {
+            ...msg.replyTo,
+            _id: msg.replyTo._id.toString(),
+            sender: {
+              ...msg.replyTo.sender,
+              _id: msg.replyTo.sender._id.toString(),
+            },
+          }
+        : undefined,
+    }))
     console.log('[DEBUG] Returning messages:', result.length)
     reply.send({ messages: result })
   } catch (error) {
