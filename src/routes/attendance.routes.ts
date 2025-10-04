@@ -7,8 +7,8 @@ import {
 } from '../controllers/attendance.controller'
 
 async function attendanceRoutes(fastify: FastifyInstance) {
-  fastify.get('/list', getAttendanceRecords)
-  fastify.post('/create', createAttendanceRecord)
+  fastify.get('/', getAttendanceRecords)
+  fastify.post('/', createAttendanceRecord)
   fastify.delete('/:id', deleteAttendanceRecord)
   fastify.get('/:id', getAttendanceRecordById)
 }
