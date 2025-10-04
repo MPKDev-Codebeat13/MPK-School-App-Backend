@@ -12,6 +12,9 @@ export const saveMessage = async (
 
     const message = new Message({
       sender: new mongoose.Types.ObjectId((request as any).user.id),
+      senderName: (request as any).user.fullName,
+      senderEmail: (request as any).user.email,
+      senderProfilePicture: (request as any).user.profilePicture,
       content,
       timestamp,
       room,
@@ -64,7 +67,7 @@ export const getMessages = async (
     }
 
     // Exclude messages deleted for the current user
-    query.deletedFor = { $nin: [new mongoose.Types.ObjectId(currentUserId)] }
+    query.deletedFor = { $nin: [(request as any).user.email] }
 
     console.log('[DEBUG] Executing query:', query)
     const messages = await Message.find(query)
@@ -90,18 +93,34 @@ export const getMessages = async (
         .reverse()
         .map((msg: any, index: number) => {
           try {
-            const senderId = msg.sender?._id?.toString() || null
-            const isCurrentUser = senderId === currentUserId
+            if (!msg.sender) {
+              msg.sender = {
+                _id: null,
+                fullName: msg.senderName,
+                email: msg.senderEmail,
+                profilePicture: msg.senderProfilePicture,
+              }
+            }
+            if (msg.replyTo && !msg.replyTo.sender) {
+              msg.replyTo.sender = {
+                _id: null,
+                fullName: msg.replyTo.senderName,
+                email: msg.replyTo.senderEmail,
+                profilePicture: msg.replyTo.senderProfilePicture,
+              }
+            }
+            const senderId = msg.sender._id?.toString() || null
+            const isCurrentUser =
+              senderId === currentUserId ||
+              msg.sender.email === (request as any).user.email
 
             return {
               ...msg,
               _id: msg._id.toString(),
-              sender: msg.sender
-                ? {
-                    ...msg.sender,
-                    _id: msg.sender._id.toString(),
-                  }
-                : null,
+              sender: {
+                ...msg.sender,
+                _id: msg.sender._id?.toString() || null,
+              },
               replyTo: msg.replyTo
                 ? {
                     ...msg.replyTo,
@@ -179,17 +198,19 @@ export const deleteMessageForMe = async (
       return reply.code(404).send({ error: 'Message not found' })
     }
 
-    // Only sender can delete
-    if (message.sender.toString() !== userId) {
+    // Only sender can delete (by id or email)
+    if (
+      message.sender.toString() !== userId &&
+      message.senderEmail !== (request as any).user.email
+    ) {
       return reply
         .code(403)
         .send({ error: 'You can only delete your own messages' })
     }
 
-    const userObjectId = new mongoose.Types.ObjectId(userId)
-    if (!message.deletedFor?.some((id) => id.equals(userObjectId))) {
+    if (!message.deletedFor?.includes((request as any).user.email)) {
       message.deletedFor = message.deletedFor || []
-      message.deletedFor.push(userObjectId)
+      message.deletedFor.push((request as any).user.email)
       await message.save()
     }
 
