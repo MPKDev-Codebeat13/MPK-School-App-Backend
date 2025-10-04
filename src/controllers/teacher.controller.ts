@@ -35,7 +35,15 @@ export async function createLessonPlan(
 
     reply.code(201).send({
       message: 'Lesson plan created successfully',
-      lessonPlan,
+      lessonPlan: {
+        _id: lessonPlan._id,
+        title: lessonPlan.title,
+        subject: lessonPlan.subject,
+        grade: lessonPlan.grade,
+        type: lessonPlan.type,
+        status: lessonPlan.status,
+        createdAt: lessonPlan.createdAt,
+      },
     })
   } catch (error) {
     console.error('Error creating lesson plan:', error)
@@ -60,7 +68,33 @@ export async function generateAILessonPlan(
         .send({ error: 'Grade, topic, and subject are required' })
     }
 
-    const prompt = `Create a detailed lesson plan for Grade ${grade} students on the topic "${topic}" in ${subject}. Include learning objectives, materials needed, step-by-step activities, and assessment methods.`
+    const prompt = `Create a comprehensive and complete lesson plan for Grade ${grade} students on the topic "${topic}" in ${subject}. Structure the lesson plan with the following sections:
+
+**Learning Objectives:**
+- List 3-5 specific, measurable learning objectives that students will achieve.
+
+**Materials Needed:**
+- List all required materials, resources, and equipment for the lesson.
+
+**Introduction/Warm-up Activity:**
+- Describe how to engage students and introduce the topic (5-10 minutes).
+
+**Main Activities:**
+- Provide step-by-step instructions for the core lesson activities.
+- Include timing for each step.
+- Ensure activities are age-appropriate and engaging.
+
+**Assessment/Evaluation:**
+- Describe how you will assess student understanding.
+- Include formative and summative assessment methods.
+
+**Closure/Conclusion:**
+- Explain how to wrap up the lesson and reinforce learning.
+
+**Differentiation:**
+- Briefly note how to adapt for different learning needs.
+
+Ensure the lesson plan is complete, practical for classroom use, and follows educational best practices. Make it detailed enough for any teacher to implement successfully.`
 
     let generatedContent: string | null = null
     let errorMessages: string[] = []
@@ -376,7 +410,18 @@ export async function updateLessonPlan(
     lessonPlan.type = type
 
     await lessonPlan.save()
-    reply.send({ message: 'Lesson plan updated successfully', lessonPlan })
+    reply.send({
+      message: 'Lesson plan updated successfully',
+      lessonPlan: {
+        _id: lessonPlan._id,
+        title: lessonPlan.title,
+        subject: lessonPlan.subject,
+        grade: lessonPlan.grade,
+        type: lessonPlan.type,
+        status: lessonPlan.status,
+        createdAt: lessonPlan.createdAt,
+      },
+    })
   } catch (error) {
     console.error('Error updating lesson plan:', error)
     reply.code(500).send({ error: 'Failed to update lesson plan' })

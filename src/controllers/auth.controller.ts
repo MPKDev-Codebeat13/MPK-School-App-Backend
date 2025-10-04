@@ -692,7 +692,7 @@ export const deleteUser = async (
       await LessonPlan.deleteMany({ teacher: userId })
       console.log('[DEBUG] Deleted lesson plans for teacher:', user.email)
     }
-    await Message.deleteMany({ 'sender._id': userId })
+    await Message.deleteMany({ sender: userId })
     console.log('[DEBUG] Deleted messages for user:', user.email)
     await AiResponse.deleteMany({ userId: userId })
     console.log('[DEBUG] Deleted AI responses for user:', user.email)
