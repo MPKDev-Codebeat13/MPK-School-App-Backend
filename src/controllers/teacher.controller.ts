@@ -374,21 +374,8 @@ export async function getLessonPlanById(
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
-    // To avoid premature close error, send only essential fields
-    const responseLessonPlan = {
-      _id: lessonPlan._id,
-      title: lessonPlan.title,
-      description: lessonPlan.description,
-      subject: lessonPlan.subject,
-      grade: lessonPlan.grade,
-      type: lessonPlan.type,
-      status: lessonPlan.status,
-      createdAt: lessonPlan.createdAt,
-      updatedAt: lessonPlan.updatedAt,
-      teacher: lessonPlan.teacher,
-    }
-
-    reply.send({ lessonPlan: responseLessonPlan })
+    // Send lesson plan with teacher populated with only fullName and email
+    reply.send({ lessonPlan })
   } catch (error) {
     console.error('Error fetching lesson plan:', error)
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })
