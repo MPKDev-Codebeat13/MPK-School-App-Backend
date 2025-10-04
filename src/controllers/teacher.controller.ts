@@ -384,6 +384,7 @@ export async function getLessonPlanById(
       type: lessonPlan.type,
       status: lessonPlan.status,
       createdAt: lessonPlan.createdAt,
+      updatedAt: lessonPlan.updatedAt,
       teacher: lessonPlan.teacher,
     }
 
