@@ -64,7 +64,7 @@ export const getMessages = async (
     }
 
     // Exclude messages deleted for the current user
-    query.$nor = [{ deletedFor: new mongoose.Types.ObjectId(currentUserId) }]
+    query.deletedFor = { $nin: [new mongoose.Types.ObjectId(currentUserId)] }
 
     console.log('[DEBUG] Executing query:', query)
     const messages = await Message.find(query)
@@ -138,8 +138,9 @@ export const getMessages = async (
     reply.send({ messages: result })
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
-    if (error.message && error.message.includes('premature close')) {
+    if (error instanceof Error && error.message?.includes('premature close')) {
       console.log('[INFO] Client disconnected prematurely')
+      // Do not send response as client disconnected
     } else {
       reply.code(500).send({ error: 'Failed to fetch messages' })
     }
@@ -166,9 +167,10 @@ export const deleteMessageForMe = async (
         .send({ error: 'You can only delete your own messages' })
     }
 
-    if (!message.deletedFor?.includes(new mongoose.Types.ObjectId(userId))) {
+    const userObjectId = new mongoose.Types.ObjectId(userId)
+    if (!message.deletedFor?.some((id) => id.equals(userObjectId))) {
       message.deletedFor = message.deletedFor || []
-      message.deletedFor.push(new mongoose.Types.ObjectId(userId))
+      message.deletedFor.push(userObjectId)
       await message.save()
     }
 
