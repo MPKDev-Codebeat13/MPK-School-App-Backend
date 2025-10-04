@@ -203,6 +203,9 @@ const startServer = async () => {
               process.env.JWT_SECRET as string
             ) as any
             ;(socket as any).userId = decoded.id
+            ;(socket as any).userEmail = decoded.email
+            ;(socket as any).userFullName = decoded.fullName
+            ;(socket as any).userProfilePicture = decoded.profilePicture
             next()
           } catch (err) {
             next(new Error('Authentication error'))
@@ -227,9 +230,12 @@ const startServer = async () => {
         socket.on('chatMessage', async (messageData: any) => {
           console.log('Received chatMessage:', messageData)
           try {
-            // Save message to database using authenticated userId
+            // Save message to database using authenticated user data
             const message = new Message({
               sender: new mongoose.Types.ObjectId(userId),
+              senderName: (socket as any).userFullName,
+              senderEmail: (socket as any).userEmail,
+              senderProfilePicture: (socket as any).userProfilePicture,
               content: messageData.content,
               timestamp: messageData.timestamp,
               room: messageData.room,

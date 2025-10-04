@@ -221,16 +221,17 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
       })
     }
 
-    // Generate access token with OAuth profile data if applicable
+    // Generate access token with user data
     const tokenPayload: any = {
       id: user._id,
       email: user.email,
       role: user.role,
+      fullName: user.fullName,
+      profilePicture: user.profilePicture,
     }
 
     // Include OAuth profile data in JWT token for OAuth users
     if (user.isOAuth) {
-      tokenPayload.fullName = user.fullName
       tokenPayload.name = user.fullName
       tokenPayload.picture = user.profilePicture
       tokenPayload.profilePic = user.profilePicture
