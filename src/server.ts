@@ -149,7 +149,7 @@ const startServer = async () => {
     fastify.register(adminRoutes, { prefix: '/api/admin' })
     fastify.register(departmentRoutes, { prefix: '/api/department' })
     fastify.register(teacherRoutes, { prefix: '/api/teacher' })
-    fastify.register(attendanceRoutes, { prefix: '/api/attendance' })
+    fastify.register(attendanceRoutes, { prefix: '/babysitter/attendance' })
     fastify.register(parentRoutes, { prefix: '/api/parent' })
     fastify.register(homeworkRoutes, { prefix: '/api/homework' })
     fastify.get('/', async () => ({
