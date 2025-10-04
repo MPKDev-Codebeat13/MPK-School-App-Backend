@@ -366,16 +366,28 @@ export async function getLessonPlanById(
     }
 
     const { id } = request.params as any
+    console.log(`[DEBUG] Fetching lesson plan ${id} for user ${user.id}`)
+
     const lessonPlan = await LessonPlan.findOne({ _id: id, teacher: user.id })
       .populate('teacher', 'fullName email')
       .lean()
 
     if (!lessonPlan) {
+      console.log(`[DEBUG] Lesson plan ${id} not found`)
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
+    console.log(
+      `[DEBUG] Found lesson plan ${id}, description length: ${
+        lessonPlan.description?.length || 0
+      }`
+    )
+
     // Send lesson plan with teacher populated with only fullName and email
-    reply.send({ lessonPlan })
+    const responseData = { lessonPlan }
+    console.log(`[DEBUG] Sending response for lesson plan ${id}`)
+
+    reply.send(responseData)
   } catch (error) {
     console.error('Error fetching lesson plan:', error)
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })
