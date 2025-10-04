@@ -6,17 +6,17 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 export default async function chatRoutes(fastify: FastifyInstance) {
-  fastify.get('/chat/users', { preHandler: authenticate, handler: getAllUsers })
-  fastify.post('/chat/messages', {
+  fastify.get('/users', { preHandler: authenticate, handler: getAllUsers })
+  fastify.post('/messages', {
     preHandler: authenticate,
     handler: saveMessage,
   })
-  fastify.get('/chat/messages', {
+  fastify.get('/messages', {
     preHandler: authenticate,
     handler: getMessages,
   })
 
-  fastify.delete('/chat/messages/:id', {
+  fastify.delete('/messages/:id', {
     preHandler: authenticate,
     handler: async (request: any, reply: any) => {
       try {
@@ -68,7 +68,7 @@ export default async function chatRoutes(fastify: FastifyInstance) {
     },
   })
 
-  fastify.put('/chat/messages/deleteForMe/:messageId', {
+  fastify.put('/messages/deleteForMe/:messageId', {
     preHandler: authenticate,
     handler: async (request: any, reply: any) => {
       try {
