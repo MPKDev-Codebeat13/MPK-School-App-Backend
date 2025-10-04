@@ -230,10 +230,18 @@ const startServer = async () => {
         socket.on('chatMessage', async (messageData: any) => {
           console.log('Received chatMessage:', messageData)
           try {
+            // Ensure senderName is set, fallback if missing
+            const senderName = (socket as any).userFullName || 'Unknown User'
+            if (!(socket as any).userFullName) {
+              console.warn(
+                `[WARN] senderName missing for user ${userId}, using fallback`
+              )
+            }
+
             // Save message to database using authenticated user data
             const message = new Message({
               sender: new mongoose.Types.ObjectId(userId),
-              senderName: (socket as any).userFullName,
+              senderName,
               senderEmail: (socket as any).userEmail,
               senderProfilePicture: (socket as any).userProfilePicture,
               content: messageData.content,

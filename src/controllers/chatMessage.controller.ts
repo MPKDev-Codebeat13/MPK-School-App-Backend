@@ -10,9 +10,19 @@ export const saveMessage = async (
     const { content, timestamp, room, isPrivate, recipients, replyTo } =
       request.body as any
 
+    // Ensure senderName is set, fallback if missing
+    const senderName = (request as any).user.fullName || 'Unknown User'
+    if (!(request as any).user.fullName) {
+      console.warn(
+        `[WARN] senderName missing for user ${
+          (request as any).user.id
+        }, using fallback`
+      )
+    }
+
     const message = new Message({
       sender: new mongoose.Types.ObjectId((request as any).user.id),
-      senderName: (request as any).user.fullName,
+      senderName,
       senderEmail: (request as any).user.email,
       senderProfilePicture: (request as any).user.profilePicture,
       content,
