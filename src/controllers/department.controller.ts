@@ -16,7 +16,7 @@ export async function getLessonPlansBySubject(
       return reply.code(400).send({ error: 'Subject is required' })
     }
 
-    const lessonPlans = await LessonPlan.find({ subject }).lean()
+    const lessonPlans = await LessonPlan.find({ subject, status: 'pending' }).lean()
 
     reply.send({ lessonPlans })
   } catch (error) {
