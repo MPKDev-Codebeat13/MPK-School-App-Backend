@@ -34,7 +34,7 @@ export async function getAttendanceRecords(
           noHwCount,
           cwCount,
           noCwCount,
-        }
+        },
       }
     })
 
@@ -66,7 +66,7 @@ export async function createAttendanceRecord(
       !studentCount ||
       !students ||
       !Array.isArray(students) ||
-      students.length !== studentCount
+      students.length > studentCount
     ) {
       return reply.status(400).send({ error: 'Invalid attendance data' })
     }
@@ -92,7 +92,9 @@ export async function deleteAttendanceRecord(
     const { id } = request.params as { id: string }
 
     if (!id) {
-      return reply.status(400).send({ error: 'Attendance record ID is required' })
+      return reply
+        .status(400)
+        .send({ error: 'Attendance record ID is required' })
     }
 
     const deletedRecord = await Attendance.findByIdAndDelete(id)
@@ -115,7 +117,9 @@ export async function getAttendanceRecordById(
     const { id } = request.params as { id: string }
 
     if (!id) {
-      return reply.status(400).send({ error: 'Attendance record ID is required' })
+      return reply
+        .status(400)
+        .send({ error: 'Attendance record ID is required' })
     }
 
     const record = await Attendance.findById(id)
@@ -149,7 +153,7 @@ export async function getAttendanceRecordById(
         noHwCount,
         cwCount,
         noCwCount,
-      }
+      },
     }
 
     reply.send({ record: recordWithStats })
