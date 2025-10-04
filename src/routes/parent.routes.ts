@@ -3,7 +3,7 @@ import { aiAssistantQuery } from '../controllers/parent.controller'
 import { authenticate } from '../middleware/auth'
 
 async function parentRoutes(fastify: FastifyInstance) {
-  fastify.post('/parent/ai-assistant', {
+  fastify.post('/ai-assistant', {
     preHandler: authenticate,
     compress: false,
     handler: aiAssistantQuery,

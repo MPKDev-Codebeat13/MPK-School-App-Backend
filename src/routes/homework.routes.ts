@@ -3,7 +3,7 @@ import { aiAssistantQuery } from '../controllers/homework.controller'
 import { authenticate } from '../middleware/auth'
 
 async function homeworkRoutes(fastify: FastifyInstance) {
-  fastify.post('/homework/chat', {
+  fastify.post('/chat', {
     preHandler: authenticate,
     compress: false,
     handler: aiAssistantQuery,

@@ -145,13 +145,13 @@ const startServer = async () => {
 
     console.log('[DEBUG] Registering routes...')
     fastify.register(authRoutes, { prefix: '/api/auth' })
-    fastify.register(chatRoutes, { prefix: '/api' })
+    fastify.register(chatRoutes, { prefix: '/api/chat' })
     fastify.register(adminRoutes, { prefix: '/api/admin' })
     fastify.register(departmentRoutes, { prefix: '/api/department' })
     fastify.register(teacherRoutes, { prefix: '/api/teacher' })
-    fastify.register(attendanceRoutes, { prefix: '/api' })
-    fastify.register(parentRoutes, { prefix: '/api' })
-    fastify.register(homeworkRoutes, { prefix: '/api' })
+    fastify.register(attendanceRoutes, { prefix: '/api/attendance' })
+    fastify.register(parentRoutes, { prefix: '/api/parent' })
+    fastify.register(homeworkRoutes, { prefix: '/api/homework' })
     fastify.get('/', async () => ({
       message: 'Welcome to the MPK School App API',
     }))

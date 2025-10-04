@@ -47,7 +47,6 @@ export const getMessages = async (
   request: FastifyRequest,
   reply: FastifyReply
 ) => {
-  let sent = false
   try {
     const { room, limit = 50, before, withUser } = request.query as any
     const currentUserId = (request as any).user.id
@@ -136,23 +135,12 @@ export const getMessages = async (
     }
 
     console.log('[DEBUG] Returning messages:', result.length)
-    try {
-      sent = true
-      reply.send({ messages: result })
-    } catch (sendError: any) {
-      if (sendError.message && sendError.message.includes('premature close')) {
-        console.log(
-          '[INFO] Client disconnected prematurely during response send'
-        )
-      } else {
-        console.error('[ERROR] Error sending messages response:', sendError)
-        throw sendError
-      }
-    }
+    reply.send({ messages: result })
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
-    if (!sent) {
-      sent = true
+    if (error.message && error.message.includes('premature close')) {
+      console.log('[INFO] Client disconnected prematurely')
+    } else {
       reply.code(500).send({ error: 'Failed to fetch messages' })
     }
   }
