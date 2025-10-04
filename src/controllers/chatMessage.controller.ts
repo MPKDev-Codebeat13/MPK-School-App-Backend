@@ -135,14 +135,33 @@ export const getMessages = async (
     }
 
     console.log('[DEBUG] Returning messages:', result.length)
-    reply.send({ messages: result })
+
+    // Ensure response is sent before any potential stream issues
+    try {
+      const responseData = { messages: result }
+      console.log('[DEBUG] Sending response with', result.length, 'messages')
+
+      // Send response and handle any streaming errors
+      await reply.send(responseData)
+      console.log('[DEBUG] Response sent successfully')
+    } catch (sendError) {
+      console.error('[ERROR] Error sending response:', sendError)
+      if (!reply.sent) {
+        reply.code(500).send({ error: 'Failed to send messages' })
+      }
+    }
   } catch (error) {
     console.error('[ERROR] getMessages error:', error)
     if (error instanceof Error && error.message?.includes('premature close')) {
-      console.log('[INFO] Client disconnected prematurely')
-      // Do not send response as client disconnected
+      console.log('[INFO] Client disconnected prematurely during processing')
+      // Try to send empty response if not already sent
+      if (!reply.sent) {
+        reply.send({ messages: [] })
+      }
     } else {
-      reply.code(500).send({ error: 'Failed to fetch messages' })
+      if (!reply.sent) {
+        reply.code(500).send({ error: 'Failed to fetch messages' })
+      }
     }
   }
 }
