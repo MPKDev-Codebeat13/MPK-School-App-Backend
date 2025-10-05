@@ -111,7 +111,11 @@ export async function getLessonPlanById(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    reply.header('x-no-compression', 'true')
+    // Truncate description if too long to prevent response issues
+    if (lessonPlan.description && lessonPlan.description.length > 2000) {
+      lessonPlan.description = lessonPlan.description.substring(0, 2000) + '...'
+    }
+
     reply.send(lessonPlan)
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })
