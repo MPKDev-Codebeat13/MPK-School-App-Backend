@@ -12,11 +12,12 @@ export async function getLessonPlansBySubject(
     }
 
     const { subject } = request.query as any
-    if (!subject) {
-      return reply.code(400).send({ error: 'Subject is required' })
+    const query: any = { status: 'pending' }
+    if (subject) {
+      query.subject = subject
     }
 
-    const lessonPlans = await LessonPlan.find({ subject, status: 'pending' })
+    const lessonPlans = await LessonPlan.find(query)
       .sort({ createdAt: -1 })
       .limit(50)
       .maxTimeMS(5000)
@@ -44,8 +45,8 @@ export async function acceptLessonPlan(
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
-    // Check if the subject matches the user's subject
-    if (lessonPlan.subject !== user.subject) {
+    // Check if the subject matches the user's subject (if user has subject)
+    if (user.subject && lessonPlan.subject !== user.subject) {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
@@ -74,8 +75,8 @@ export async function rejectLessonPlan(
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
-    // Check if the subject matches the user's subject
-    if (lessonPlan.subject !== user.subject) {
+    // Check if the subject matches the user's subject (if user has subject)
+    if (user.subject && lessonPlan.subject !== user.subject) {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
@@ -107,7 +108,11 @@ export async function getLessonPlanById(
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
-    if (user.role === 'Department' && lessonPlan.subject !== user.subject) {
+    if (
+      user.role === 'Department' &&
+      user.subject &&
+      lessonPlan.subject !== user.subject
+    ) {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
