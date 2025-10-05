@@ -18,6 +18,6 @@ export default async function teacherRoutes(fastify: FastifyInstance) {
   fastify.post('/lesson-plans/:id/submit', submitLessonPlan)
   fastify.delete('/lesson-plans/:id', deleteLessonPlan)
   fastify.get('/lesson-plans', getTeacherLessonPlans)
-  fastify.get('/lesson-plans/:id', getLessonPlanById)
+  fastify.get('/lesson-plans/:id', { compress: false }, getLessonPlanById)
   fastify.put('/lesson-plans/:id', updateLessonPlan)
 }
