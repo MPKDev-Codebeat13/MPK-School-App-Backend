@@ -387,6 +387,7 @@ export async function getLessonPlanById(
     const responseData = { lessonPlan }
     console.log(`[DEBUG] Sending response for lesson plan ${id}`)
 
+    reply.header('Content-Encoding', 'identity')
     reply.send(responseData)
   } catch (error) {
     console.error('Error fetching lesson plan:', error)
