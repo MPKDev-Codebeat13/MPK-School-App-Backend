@@ -273,10 +273,10 @@ export async function submitLessonPlan(
       return reply.code(404).send({ error: 'Lesson plan not found' })
     }
 
-    if (lessonPlan.status !== 'pending') {
+    if (lessonPlan.status !== 'draft') {
       return reply
         .code(400)
-        .send({ error: 'Lesson plan is not in pending status' })
+        .send({ error: 'Lesson plan is not in draft status' })
     }
 
     lessonPlan.status = 'pending'
