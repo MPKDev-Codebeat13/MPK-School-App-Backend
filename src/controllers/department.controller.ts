@@ -12,7 +12,7 @@ export async function getLessonPlansBySubject(
     }
 
     const { subject } = request.query as any
-    const query: any = { status: 'pending' }
+    const query: any = { status: { $in: ['pending', 'accepted', 'rejected'] } }
     if (subject) {
       query.subject = subject
     }
