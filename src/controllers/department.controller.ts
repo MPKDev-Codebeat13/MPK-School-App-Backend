@@ -112,8 +112,8 @@ export async function getLessonPlanById(
     }
 
     // Truncate description if too long to prevent response issues
-    if (lessonPlan.description && lessonPlan.description.length > 2000) {
-      lessonPlan.description = lessonPlan.description.substring(0, 2000) + '...'
+    if (lessonPlan.description && lessonPlan.description.length > 500) {
+      lessonPlan.description = lessonPlan.description.substring(0, 500) + '...'
     }
 
     reply.send(lessonPlan)
