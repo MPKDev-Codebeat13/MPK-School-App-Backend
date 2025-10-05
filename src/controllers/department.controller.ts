@@ -99,7 +99,9 @@ export async function getLessonPlanById(
     }
 
     const { id } = request.params as any
-    const lessonPlan = await LessonPlan.findById(id).lean()
+    const lessonPlan = await LessonPlan.findById(id)
+      .populate('teacher', 'fullName email')
+      .lean()
 
     if (!lessonPlan) {
       return reply.code(404).send({ error: 'Lesson plan not found' })
@@ -109,6 +111,7 @@ export async function getLessonPlanById(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
+    reply.header('x-no-compression', 'true')
     reply.send(lessonPlan)
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })
