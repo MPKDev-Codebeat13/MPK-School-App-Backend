@@ -116,7 +116,6 @@ export async function getLessonPlanById(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    reply.header('Content-Encoding', 'identity')
     reply.send(lessonPlan)
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })

@@ -11,10 +11,12 @@ export default async function departmentRoutes(fastify: FastifyInstance) {
   fastify.get('/lesson-plans', {
     preHandler: authenticate,
     handler: getLessonPlansBySubject,
+    compress: false,
   })
   fastify.get('/lesson-plans/:id', {
     preHandler: authenticate,
     handler: getLessonPlanById,
+    compress: false,
   })
   fastify.post('/lesson-plans/:id/accept', {
     preHandler: authenticate,
