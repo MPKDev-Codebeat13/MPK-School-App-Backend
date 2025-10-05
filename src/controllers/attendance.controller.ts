@@ -6,7 +6,38 @@ export async function getAttendanceRecords(
   reply: FastifyReply
 ) {
   try {
-    const records = await Attendance.find().sort({ date: -1 }).exec()
+    if (request.raw.aborted) {
+      console.log('[DEBUG] Request aborted by client')
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
+
+    const { page, limit } = request.query as { page?: string; limit?: string }
+
+    const pageNum = Math.max(parseInt(page || '1', 10), 1)
+    const limitNum = Math.min(Math.max(parseInt(limit || '50', 10), 1), 100)
+    const skip = (pageNum - 1) * limitNum
+
+    console.log('[DEBUG] Attendance Pagination:', { pageNum, limitNum, skip })
+
+    let records, total
+    try {
+      ;[records, total] = await Promise.all([
+        Attendance.find({})
+          .sort({ date: -1 })
+          .skip(skip)
+          .limit(limitNum)
+          .exec(),
+        Attendance.countDocuments({}),
+      ])
+    } catch (dbError) {
+      console.error('[Attendance:getAttendanceRecords] DB error:', dbError)
+      return reply.code(500).send({ error: 'Database error' })
+    }
+
+    if (request.raw.aborted) {
+      console.log('[DEBUG] Request aborted before sending response')
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
 
     // Calculate statistics for each record
     const recordsWithStats = records.map((record: any) => {
@@ -38,8 +69,17 @@ export async function getAttendanceRecords(
       }
     })
 
-    reply.send({ records: recordsWithStats })
+    reply.type('application/json').send({
+      records: recordsWithStats,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    })
   } catch (error) {
+    console.error('[Attendance:getAttendanceRecords] Unexpected error:', error)
     reply.status(500).send({ error: 'Failed to fetch attendance records' })
   }
 }
