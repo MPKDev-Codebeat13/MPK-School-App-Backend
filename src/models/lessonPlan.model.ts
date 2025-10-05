@@ -7,7 +7,7 @@ export interface ILessonPlan extends Document {
   grade: string
   teacher: mongoose.Types.ObjectId
   status: 'draft' | 'pending' | 'accepted' | 'rejected'
-  type: 'manual' | 'ai' | 'uploaded'
+  type: 'manual' | 'ai'
   createdAt: Date
   updatedAt: Date
 }
@@ -28,7 +28,7 @@ const lessonPlanSchema = new Schema<ILessonPlan>(
       enum: ['draft', 'pending', 'accepted', 'rejected'],
       default: 'draft',
     },
-    type: { type: String, enum: ['manual', 'ai', 'uploaded'], required: true },
+    type: { type: String, enum: ['manual', 'ai'], required: true },
   },
   { timestamps: true }
 )

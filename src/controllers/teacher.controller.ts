@@ -205,7 +205,7 @@ Ensure the lesson plan is complete, practical for classroom use, and follows edu
         try {
           const response = await withTimeout(
             cohere.chat({
-              model: 'command-r-light', // ✅ Updated model
+              model: 'command-r-plus', // ✅ Updated model
               message: prompt,
               maxTokens: 500,
               temperature: 0.7,
