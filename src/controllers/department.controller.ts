@@ -111,11 +111,6 @@ export async function getLessonPlanById(
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    // Truncate description if too long to prevent response issues
-    if (lessonPlan.description && lessonPlan.description.length > 500) {
-      lessonPlan.description = lessonPlan.description.substring(0, 500) + '...'
-    }
-
     reply.send(lessonPlan)
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })

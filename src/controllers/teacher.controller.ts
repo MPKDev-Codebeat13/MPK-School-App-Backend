@@ -383,11 +383,6 @@ export async function getLessonPlanById(
       }`
     )
 
-    // Truncate description if too long to prevent response issues
-    if (lessonPlan.description && lessonPlan.description.length > 500) {
-      lessonPlan.description = lessonPlan.description.substring(0, 500) + '...'
-    }
-
     // Send lesson plan with teacher populated with only fullName and email
     const responseData = { lessonPlan }
     console.log(`[DEBUG] Sending response for lesson plan ${id}`)
