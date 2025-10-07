@@ -19,15 +19,24 @@ export async function getAttendanceRecords(
 
     console.log('[DEBUG] Attendance Pagination:', { pageNum, limitNum, skip })
 
+    // Filter records based on user role
+    let filter: any = {}
+    const user = (request as any).user
+    if (user.role === 'Babysitter') {
+      filter.grade = user.grade
+      filter.section = user.section
+    }
+    // Add more role-based filters here if needed
+
     let records, total
     try {
       ;[records, total] = await Promise.all([
-        Attendance.find({})
+        Attendance.find(filter)
           .sort({ date: -1 })
           .skip(skip)
           .limit(limitNum)
           .exec(),
-        Attendance.countDocuments({}),
+        Attendance.countDocuments(filter),
       ])
     } catch (dbError) {
       console.error('[Attendance:getAttendanceRecords] DB error:', dbError)
@@ -119,6 +128,15 @@ export async function createAttendanceRecord(
       return reply.status(400).send({ error: 'Invalid attendance data' })
     }
 
+    // Check if user has permission to create for this grade/section
+    const user = (request as any).user
+    if (
+      user.role === 'Babysitter' &&
+      (grade !== user.grade || section !== user.section)
+    ) {
+      return reply.status(403).send({ error: 'Access denied' })
+    }
+
     const attendance = new Attendance({
       studentCount,
       students,
@@ -147,11 +165,23 @@ export async function deleteAttendanceRecord(
         .send({ error: 'Attendance record ID is required' })
     }
 
-    const deletedRecord = await Attendance.findByIdAndDelete(id)
+    const deletedRecord = await Attendance.findById(id)
 
     if (!deletedRecord) {
       return reply.status(404).send({ error: 'Attendance record not found' })
     }
+
+    // Check if user has access to this record
+    const user = (request as any).user
+    if (
+      user.role === 'Babysitter' &&
+      (deletedRecord.grade !== user.grade ||
+        deletedRecord.section !== user.section)
+    ) {
+      return reply.status(403).send({ error: 'Access denied' })
+    }
+
+    await Attendance.findByIdAndDelete(id)
 
     reply.send({ message: 'Attendance record deleted successfully' })
   } catch (error) {
@@ -176,6 +206,15 @@ export async function getAttendanceRecordById(
 
     if (!record) {
       return reply.status(404).send({ error: 'Attendance record not found' })
+    }
+
+    // Check if user has access to this record
+    const user = (request as any).user
+    if (
+      user.role === 'Babysitter' &&
+      (record.grade !== user.grade || record.section !== user.section)
+    ) {
+      return reply.status(403).send({ error: 'Access denied' })
     }
 
     // Calculate statistics for the record
