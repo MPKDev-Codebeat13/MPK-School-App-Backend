@@ -53,8 +53,12 @@ export async function getAttendanceRecords(
       const cwCount = students.filter((s: any) => !s.noCW).length
       const noCwCount = students.filter((s: any) => s.noCW).length
 
+      const recordObj = record.toObject()
+      // Remove students array to reduce response size for list view
+      delete recordObj.students
+
       return {
-        ...record.toObject(),
+        ...recordObj,
         stats: {
           totalStudents,
           presentCount,
