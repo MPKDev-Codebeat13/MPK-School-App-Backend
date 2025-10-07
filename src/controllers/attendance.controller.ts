@@ -129,10 +129,18 @@ export async function createAttendanceRecord(
 
     // Check if user has permission to create for this grade/section
     const user = (request as any).user
+    console.log('[DEBUG] User:', {
+      role: user.role,
+      grade: user.grade,
+      section: user.section,
+    })
+    console.log('[DEBUG] Request:', { grade, section })
+
     if (
       user.role === 'Babysitter' &&
       (grade !== user.grade || section !== user.section)
     ) {
+      console.log('[DEBUG] Access denied: grade/section mismatch')
       return reply.status(403).send({ error: 'Access denied' })
     }
     const attendance = new Attendance({

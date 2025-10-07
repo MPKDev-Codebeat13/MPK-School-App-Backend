@@ -20,6 +20,7 @@ export const authenticate = async (
       role: user.role,
       subject: user.subject,
       grade: user.grade,
+      section: user.section,
     }
   } catch (error) {
     return reply.code(401).send({ error: 'Invalid token' })
