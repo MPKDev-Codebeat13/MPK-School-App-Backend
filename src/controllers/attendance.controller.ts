@@ -53,7 +53,7 @@ export async function getAttendanceRecords(
       const totalStudents = students.length
 
       const presentCount = students.filter((s: any) => s.present).length
-      const absentCount = students.filter((s: any) => s.absent).length
+      const absentCount = totalStudents - presentCount
       const uniformCount = students.filter((s: any) => s.uniform).length
       const noUniformCount = totalStudents - uniformCount
       const hwCount = students.filter((s: any) => !s.noHW).length
@@ -222,7 +222,7 @@ export async function getAttendanceRecordById(
     const totalStudents = students.length
 
     const presentCount = students.filter((s: any) => s.present).length
-    const absentCount = students.filter((s: any) => s.absent).length
+    const absentCount = totalStudents - presentCount
     const uniformCount = students.filter((s: any) => s.uniform).length
     const noUniformCount = totalStudents - uniformCount
     const hwCount = students.filter((s: any) => !s.noHW).length
