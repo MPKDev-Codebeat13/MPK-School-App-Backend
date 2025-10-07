@@ -89,7 +89,7 @@ export async function createAttendanceRecord(
   reply: FastifyReply
 ) {
   try {
-    const { studentCount, students } = request.body as {
+    const { studentCount, students, grade, section } = request.body as {
       studentCount: number
       students: {
         name: string
@@ -100,13 +100,17 @@ export async function createAttendanceRecord(
         noHW: boolean
         noCW: boolean
       }[]
+      grade: string
+      section: string
     }
 
     if (
       !studentCount ||
       !students ||
       !Array.isArray(students) ||
-      students.length > studentCount
+      students.length > studentCount ||
+      !grade ||
+      !section
     ) {
       return reply.status(400).send({ error: 'Invalid attendance data' })
     }
@@ -114,6 +118,8 @@ export async function createAttendanceRecord(
     const attendance = new Attendance({
       studentCount,
       students,
+      grade,
+      section,
     })
 
     await attendance.save()

@@ -2,6 +2,8 @@ import { Schema, model, Document } from 'mongoose'
 
 export interface AttendanceDocument extends Document {
   date: Date
+  grade: string
+  section: string
   studentCount: number
   students: {
     name: string
@@ -16,6 +18,8 @@ export interface AttendanceDocument extends Document {
 
 const AttendanceSchema = new Schema<AttendanceDocument>({
   date: { type: Date, default: Date.now },
+  grade: { type: String, required: true },
+  section: { type: String, required: true },
   studentCount: { type: Number, required: true },
   students: [
     {

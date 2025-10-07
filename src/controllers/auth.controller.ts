@@ -19,7 +19,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
     console.log('[DEBUG] [START] Signup controller called. Body:', request.body)
 
     // Input validation and sanitization
-    const { fullName, email, password, role, grade, subject } =
+    const { fullName, email, password, role, grade, section, subject } =
       request.body as any
 
     if (!fullName || !email || !password || !role) {
@@ -36,6 +36,13 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       return reply
         .code(400)
         .send({ error: 'Subject is required for teachers and departments' })
+    }
+
+    // Validate section for Babysitter
+    if (role === 'Babysitter' && (!section || section.trim() === '')) {
+      return reply
+        .code(400)
+        .send({ error: 'Section is required for babysitters' })
     }
 
     const trimmedEmail = email.trim().toLowerCase()
@@ -109,6 +116,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
       password,
       role: role as IUser['role'],
       grade,
+      section,
       profilePicture,
       verificationToken,
       verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
@@ -142,6 +150,7 @@ export const signup = async (request: FastifyRequest, reply: FastifyReply) => {
         email: trimmedEmail,
         role,
         grade,
+        section,
         subject,
         profilePicture,
       },
@@ -270,6 +279,7 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
         email: user.email,
         role: user.role,
         grade: user.grade,
+        section: user.section,
         subject: user.subject,
         profilePicture: user.profilePicture,
         isVerified: user.isVerified,
@@ -304,6 +314,7 @@ export const getProfile = async (
         email: user.email,
         role: user.role,
         grade: user.grade,
+        section: user.section,
         subject: user.subject,
         profilePicture: user.profilePicture,
       },
@@ -529,6 +540,7 @@ export const updateUser = async (
     let profilePicture = user.profilePicture
     let role = user.role
     let grade = user.grade
+    let section = user.section
     let subject = user.subject
 
     // Input validation and sanitization
@@ -578,6 +590,20 @@ export const updateUser = async (
         return reply.code(400).send({ error: 'Invalid grade' })
       }
       grade = gradeValue
+    }
+
+    if (body.section) {
+      let sectionValue = body.section
+      if (typeof body.section === 'object' && body.section.value) {
+        sectionValue = body.section.value
+      }
+      if (
+        sectionValue &&
+        (typeof sectionValue !== 'string' || sectionValue.length > 10)
+      ) {
+        return reply.code(400).send({ error: 'Invalid section' })
+      }
+      section = sectionValue
     }
 
     if (body.subject) {
@@ -648,6 +674,7 @@ export const updateUser = async (
       user.profilePicture = profilePicture
     if (role !== user.role) user.role = role as IUser['role']
     if (grade !== user.grade) user.grade = grade
+    if (section !== user.section) user.section = section
     if (subject !== user.subject) user.subject = subject
 
     await user.save()
@@ -664,6 +691,7 @@ export const updateUser = async (
         email: user.email,
         role: user.role,
         grade: user.grade,
+        section: user.section,
         subject: user.subject,
         profilePicture: user.profilePicture,
         isVerified: user.isVerified,

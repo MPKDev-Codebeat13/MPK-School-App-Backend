@@ -16,6 +16,7 @@ export interface IUser extends Document {
   profilePicture?: string
 
   grade?: string
+  section?: string
   subject?: string
   department?: string
   isVerified: boolean
@@ -72,6 +73,10 @@ const userSchema = new Schema<IUser>(
       default: '',
     },
     grade: {
+      type: String,
+      trim: true,
+    },
+    section: {
       type: String,
       trim: true,
     },
