@@ -544,12 +544,13 @@ export const updateUser = async (
     let subject = user.subject
 
     // Input validation and sanitization
-    if (body.fullName) {
-      let nameValue = body.fullName
-      if (typeof body.fullName === 'object' && body.fullName.value) {
-        nameValue = body.fullName.value
+    // Handle fullName from FormData or JSON
+    let fullNameValue = body.fullName
+    if (fullNameValue) {
+      if (typeof fullNameValue === 'object' && fullNameValue.value) {
+        fullNameValue = fullNameValue.value
       }
-      const trimmedName = nameValue.trim()
+      const trimmedName = fullNameValue.trim()
       if (trimmedName.length < 2) {
         return reply
           .code(400)
