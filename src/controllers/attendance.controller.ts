@@ -23,8 +23,7 @@ export async function getAttendanceRecords(
     let filter: any = {}
     const user = (request as any).user
     if (user.role === 'Babysitter') {
-      filter.grade = user.grade
-      filter.section = user.section
+      filter.email = user.email
     }
     // Add more role-based filters here if needed
 
@@ -136,8 +135,8 @@ export async function createAttendanceRecord(
     ) {
       return reply.status(403).send({ error: 'Access denied' })
     }
-
     const attendance = new Attendance({
+      email: user.email,
       studentCount,
       students,
       grade,
@@ -173,11 +172,7 @@ export async function deleteAttendanceRecord(
 
     // Check if user has access to this record
     const user = (request as any).user
-    if (
-      user.role === 'Babysitter' &&
-      (deletedRecord.grade !== user.grade ||
-        deletedRecord.section !== user.section)
-    ) {
+    if (user.role === 'Babysitter' && deletedRecord.email !== user.email) {
       return reply.status(403).send({ error: 'Access denied' })
     }
 
@@ -210,10 +205,7 @@ export async function getAttendanceRecordById(
 
     // Check if user has access to this record
     const user = (request as any).user
-    if (
-      user.role === 'Babysitter' &&
-      (record.grade !== user.grade || record.section !== user.section)
-    ) {
+    if (user.role === 'Babysitter' && record.email !== user.email) {
       return reply.status(403).send({ error: 'Access denied' })
     }
 
