@@ -110,7 +110,7 @@ export async function getAllAttendances(
           .sort({ date: -1 })
           .skip(skip)
           .limit(limitNum)
-          .exec(),
+          .lean(),
         Attendance.countDocuments({}),
       ])
     } catch (dbError) {
@@ -138,7 +138,7 @@ export async function getAllAttendances(
       const noCwCount = students.filter((s: any) => s.noCW).length
 
       return {
-        ...record.toObject(),
+        ...record,
         stats: {
           totalStudents,
           presentCount,
