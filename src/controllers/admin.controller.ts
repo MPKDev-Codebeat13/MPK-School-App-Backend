@@ -153,7 +153,7 @@ export async function getAllAttendances(
       }
     })
 
-    reply.type('application/json').send({
+    const responseData = {
       attendances: attendancesWithStats,
       pagination: {
         page: pageNum,
@@ -161,7 +161,15 @@ export async function getAllAttendances(
         total,
         pages: Math.ceil(total / limitNum),
       },
-    })
+    }
+
+    // Check if request was aborted before sending response
+    if (request.raw.aborted) {
+      console.log('[DEBUG] Request aborted before sending attendance response')
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
+
+    reply.type('application/json').send(responseData)
   } catch (error) {
     console.error('[Admin:getAllAttendances] Unexpected error:', error)
     reply.code(500).send({ error: 'Failed to fetch attendances' })
