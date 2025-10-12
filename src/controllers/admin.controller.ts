@@ -163,13 +163,26 @@ export async function getAllAttendances(
       },
     }
 
-    // Check if request was aborted before sending response
-    if (request.raw.aborted) {
-      console.log('[DEBUG] Request aborted before sending attendance response')
-      return reply.code(499).send({ error: 'Client closed request' })
+    // Set up response handling with abort detection
+    const onAborted = () => {
+      console.log('[DEBUG] Request aborted during attendance response')
+      reply.raw.end() // Close the connection
     }
 
-    reply.type('application/json').send(responseData)
+    request.raw.on('aborted', onAborted)
+
+    try {
+      reply.type('application/json').send(responseData)
+    } catch (sendError) {
+      console.log(
+        '[DEBUG] Error sending attendance response, client may have disconnected:',
+        (sendError as Error)?.message || String(sendError)
+      )
+      // Don't send another response if sending failed
+    } finally {
+      // Clean up the event listener
+      request.raw.removeListener('aborted', onAborted)
+    }
   } catch (error) {
     console.error('[Admin:getAllAttendances] Unexpected error:', error)
     reply.code(500).send({ error: 'Failed to fetch attendances' })
