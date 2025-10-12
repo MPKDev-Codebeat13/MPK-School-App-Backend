@@ -123,6 +123,14 @@ export async function getAllAttendances(
       return reply.code(499).send({ error: 'Client closed request' })
     }
 
+    // Final abort check before processing response data
+    if (request.raw.aborted) {
+      console.log(
+        '[DEBUG] Request aborted before processing attendance response'
+      )
+      return reply.code(499).send({ error: 'Client closed request' })
+    }
+
     // Calculate statistics for each record
     const attendancesWithStats = attendances.map((record: any) => {
       const students = record.students || []
@@ -166,7 +174,9 @@ export async function getAllAttendances(
     // Set up response handling with abort detection
     const onAborted = () => {
       console.log('[DEBUG] Request aborted during attendance response')
-      reply.raw.end() // Close the connection
+      if (!reply.sent) {
+        reply.raw.end() // Close the connection only if response not sent
+      }
     }
 
     request.raw.on('aborted', onAborted)
