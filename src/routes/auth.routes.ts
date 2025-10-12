@@ -10,6 +10,7 @@ import {
   deleteUser,
   forgotPassword,
   resetPassword,
+  setPasswordAfterOAuth,
 } from '../controllers/auth.controller'
 import { authenticate } from '../middleware/auth'
 import * as jwt from 'jsonwebtoken'
@@ -162,7 +163,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
       const frontendUrl = `${
         process.env.CLIENT_URL || 'https://mymnexus.netlify.app'
       }/oauth-callback?accessToken=${jwtToken}&user=${encodeURIComponent(
-        JSON.stringify(user)
+        JSON.stringify({
+          ...user.toObject(),
+          hasPassword: !!user.password,
+        })
       )}`
       clearTimeout(timeoutId)
       reply.redirect(frontendUrl)
@@ -283,4 +287,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
   // Reset password endpoint
   fastify.post('/reset-password', { handler: resetPassword })
+
+  // Set password after OAuth endpoint
+  fastify.post('/set-password', {
+    preHandler: authenticate,
+    handler: setPasswordAfterOAuth,
+  })
 }

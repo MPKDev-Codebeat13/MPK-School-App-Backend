@@ -838,3 +838,56 @@ export const resetPassword = async (
     reply.code(500).send({ error: 'Password reset failed' })
   }
 }
+
+export const setPasswordAfterOAuth = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    console.log('[DEBUG] [START] setPasswordAfterOAuth controller called')
+    const userId = (request as any).user?.id
+    const { password } = request.body as any
+
+    if (!password) {
+      return reply.code(400).send({ error: 'Password is required' })
+    }
+
+    if (password.length < 6) {
+      return reply
+        .code(400)
+        .send({ error: 'Password must be at least 6 characters long' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    // Only allow OAuth users who don't have a password set yet
+    if (!user.isOAuth) {
+      return reply
+        .code(400)
+        .send({ error: 'This endpoint is only for OAuth users' })
+    }
+
+    if (user.password) {
+      return reply
+        .code(400)
+        .send({ error: 'Password already set for this user' })
+    }
+
+    // Hash and set password
+    const hashedPassword = await bcrypt.hash(password, 10)
+    user.password = hashedPassword
+    await user.save()
+
+    console.log(
+      '[DEBUG] [END] Password set successfully for OAuth user:',
+      user.email
+    )
+    reply.send({ message: 'Password set successfully' })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] setPasswordAfterOAuth controller:', error)
+    reply.code(500).send({ error: 'Failed to set password' })
+  }
+}
