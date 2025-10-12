@@ -195,15 +195,14 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
 
     // Handle OAuth users
     if (user.isOAuth) {
-      // OAuth users can only login if they have set a password
-      if (!user.password) {
-        console.log(
-          '[DEBUG] [END] Login controller: OAuth user without password tried to login'
-        )
-        return reply.code(400).send({
-          error: 'Please use Google OAuth to login, or set a password first',
-        })
-      }
+      // OAuth users can login with OAuth or with password if they have set one
+      // Allow OAuth users to login even without password (they can use OAuth)
+      console.log(
+        '[DEBUG] OAuth user attempting login:',
+        user.email,
+        'has password:',
+        !!user.password
+      )
     }
 
     // Check if user has a password (should always be true for non-OAuth users)
