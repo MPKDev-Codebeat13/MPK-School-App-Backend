@@ -888,13 +888,27 @@ export const setPasswordAfterOAuth = async (
     // Hash and set password
     const hashedPassword = await bcrypt.hash(password, 10)
     user.password = hashedPassword
+    user.isVerified = true
     await user.save()
 
     console.log(
       '[DEBUG] [END] Password set successfully for OAuth user:',
       user.email
     )
-    reply.send({ message: 'Password set successfully' })
+    reply.send({
+      message: 'Password set successfully',
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        grade: user.grade,
+        section: user.section,
+        subject: user.subject,
+        profilePicture: user.profilePicture,
+        isVerified: user.isVerified,
+      },
+    })
   } catch (error) {
     console.error('[DEBUG] [ERROR] setPasswordAfterOAuth controller:', error)
     reply.code(500).send({ error: 'Failed to set password' })
