@@ -185,7 +185,8 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     console.log('[DEBUG] [START] Login controller called. Body:', request.body)
     const { email, password } = request.body as any
-    const user = await User.findOne({ email })
+    const trimmedEmail = email.trim().toLowerCase()
+    const user = await User.findOne({ email: trimmedEmail })
     if (!user) {
       console.log(
         '[DEBUG] [END] Login controller: Invalid credentials (user not found)'
@@ -201,7 +202,9 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
         '[DEBUG] OAuth user attempting login:',
         user.email,
         'has password:',
-        !!user.password
+        !!user.password,
+        'password length:',
+        user.password ? user.password.length : 0
       )
     }
 
