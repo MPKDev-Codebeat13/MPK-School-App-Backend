@@ -146,7 +146,13 @@ export async function getAllAttendances(
       const noCwCount = students.filter((s: any) => s.noCW).length
 
       return {
-        ...record,
+        _id: record._id,
+        date: record.date,
+        email: record.email,
+        grade: record.grade,
+        section: record.section || 'N/A', // Ensure section is always present
+        studentCount: totalStudents,
+        students,
         stats: {
           totalStudents,
           presentCount,
@@ -171,28 +177,7 @@ export async function getAllAttendances(
       },
     }
 
-    // Set up response handling with abort detection
-    const onAborted = () => {
-      console.log('[DEBUG] Request aborted during attendance response')
-      if (!reply.sent) {
-        reply.raw.end() // Close the connection only if response not sent
-      }
-    }
-
-    request.raw.on('aborted', onAborted)
-
-    try {
-      reply.type('application/json').send(responseData)
-    } catch (sendError) {
-      console.log(
-        '[DEBUG] Error sending attendance response, client may have disconnected:',
-        (sendError as Error)?.message || String(sendError)
-      )
-      // Don't send another response if sending failed
-    } finally {
-      // Clean up the event listener
-      request.raw.removeListener('aborted', onAborted)
-    }
+    reply.type('application/json').send(responseData)
   } catch (error) {
     console.error('[Admin:getAllAttendances] Unexpected error:', error)
     reply.code(500).send({ error: 'Failed to fetch attendances' })
