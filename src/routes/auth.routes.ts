@@ -101,7 +101,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
         code,
         grant_type: 'authorization_code',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        redirect_uri:
+          process.env.GOOGLE_REDIRECT_URI ||
+          'http://localhost:4000/api/auth/google/callback',
       })
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
