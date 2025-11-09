@@ -222,21 +222,14 @@ export const login = async (request: FastifyRequest, reply: FastifyReply) => {
       return reply.code(400).send({ error: 'Invalid credentials' })
     }
 
-    // Check if user is verified (skip for OAuth users since they're already authenticated by Google)
-    if (!user.isVerified && !user.isOAuth) {
+    // Check if user is verified (OAuth users must also verify like regular users)
+    if (!user.isVerified) {
       console.log('[DEBUG] [END] Login controller: User not verified')
       return reply.code(403).send({
         error: 'Please verify your email before logging in',
         redirectTo: '/check-email',
         email: user.email,
       })
-    }
-
-    // For OAuth users, mark them as verified if they haven't been already
-    if (user.isOAuth && !user.isVerified) {
-      user.isVerified = true
-      await user.save()
-      console.log('[DEBUG] OAuth user marked as verified:', user.email)
     }
 
     // Generate access token with user data
@@ -888,7 +881,7 @@ export const setPasswordAfterOAuth = async (
     // Hash and set password
     const hashedPassword = await bcrypt.hash(password, 10)
     user.password = hashedPassword
-    user.isVerified = true
+    // Do NOT set isVerified here - OAuth users must verify email like regular users
     await user.save()
 
     console.log(

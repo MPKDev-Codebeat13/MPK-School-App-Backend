@@ -78,9 +78,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // Google OAuth start
   fastify.get('/google', async (request, reply) => {
     const clientId = process.env.GOOGLE_CLIENT_ID
-    const redirectUri =
-      process.env.GOOGLE_REDIRECT_URI ||
-      'https://mym-nexus.onrender.com/api/auth/google/callback'
+    // Force HTTP for localhost development
+    const redirectUri = 'http://localhost:4000/api/auth/google/callback'
     const scope = 'openid profile email'
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`
     reply.redirect(authUrl)
@@ -103,9 +102,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
         code,
         grant_type: 'authorization_code',
-        redirect_uri:
-          process.env.GOOGLE_REDIRECT_URI ||
-          'https://mym-nexus.onrender.com/api/auth/google/callback',
+        redirect_uri: 'http://localhost:4000/api/auth/google/callback',
       })
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
@@ -132,27 +129,53 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       let user = await User.findOne({ email: profile.email })
       if (!user) {
+        // Generate verification token for OAuth users
+        const verificationToken = generateVerificationToken()
         user = await User.create({
           fullName: profile.name,
           email: profile.email,
           role: '', // Don't set default role, let user choose in CompleteProfile
           profilePicture: profile.picture || '',
-          isVerified: false, // OAuth users need to complete profile first
+          isVerified: false, // OAuth users must verify like regular users
           isOAuth: true,
+          verificationToken,
+          verificationTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
         })
         console.log('[DEBUG] New OAuth user created:', profile.email)
+
+        // Send verification email asynchronously
+        const newUser = user
+        setImmediate(async () => {
+          try {
+            await sendVerificationEmail(newUser.email, verificationToken)
+            newUser.verificationEmailSent = true
+            await newUser.save()
+            console.log(
+              '[DEBUG] Verification email sent to OAuth user:',
+              newUser.email
+            )
+          } catch (emailError) {
+            console.error(
+              '[DEBUG] Failed to send verification email to OAuth user:',
+              emailError
+            )
+          }
+        })
       } else {
         // Existing OAuth user - check if they need to complete profile
-        if (user.isOAuth && !user.isVerified) {
+        if (user && user.isOAuth && !user.isVerified) {
           console.log(
-            '[DEBUG] Existing OAuth user needs profile completion:',
+            '[DEBUG] Existing OAuth user needs verification and profile completion:',
             user.email
           )
-        } else {
+        } else if (user) {
           console.log('[DEBUG] Existing OAuth user found:', user.email)
         }
       }
       // Generate JWT
+      if (!user) {
+        return reply.code(500).send({ error: 'User creation failed' })
+      }
       const jwtToken = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
         process.env.JWT_SECRET as string,
@@ -161,11 +184,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       // Redirect to frontend with token and user data
       const frontendUrl = `${
-        process.env.CLIENT_URL || 'https://mymnexus.netlify.app'
+        process.env.CLIENT_URL || 'http://localhost:5173'
       }/oauth-callback?accessToken=${jwtToken}&user=${encodeURIComponent(
         JSON.stringify({
-          ...user.toObject(),
-          hasPassword: !!user.password,
+          ...user!.toObject(),
+          hasPassword: !!user!.password,
         })
       )}`
       clearTimeout(timeoutId)
@@ -252,35 +275,35 @@ export default async function authRoutes(fastify: FastifyInstance) {
     handler: changePassword,
   })
 
-  // Auto-verify OAuth user endpoint
-  fastify.post('/auto-verify-oauth', async (request, reply) => {
-    try {
-      const { email } = request.body as any
-      if (!email) {
-        return reply.code(400).send({ error: 'Email is required' })
-      }
+  // Auto-verify OAuth user endpoint - DISABLED: OAuth users now use manual verification
+  // fastify.post('/auto-verify-oauth', async (request, reply) => {
+  //   try {
+  //     const { email } = request.body as any
+  //     if (!email) {
+  //       return reply.code(400).send({ error: 'Email is required' })
+  //     }
 
-      const user = await User.findOne({ email, isOAuth: true })
-      if (!user) {
-        return reply.code(404).send({ error: 'OAuth user not found' })
-      }
+  //     const user = await User.findOne({ email, isOAuth: true })
+  //     if (!user) {
+  //       return reply.code(404).send({ error: 'OAuth user not found' })
+  //     }
 
-      if (user.isVerified) {
-        return reply.send({ message: 'User already verified' })
-      }
+  //     if (user.isVerified) {
+  //       return reply.send({ message: 'User already verified' })
+  //     }
 
-      user.isVerified = true
-      user.verificationToken = undefined
-      user.verificationTokenExpires = undefined
-      await user.save()
+  //     user.isVerified = true
+  //     user.verificationToken = undefined
+  //     user.verificationTokenExpires = undefined
+  //     await user.save()
 
-      console.log(`[DEBUG] OAuth user auto-verified: ${user.email}`)
-      reply.send({ message: 'OAuth user auto-verified successfully' })
-    } catch (error) {
-      console.error('[DEBUG] Auto-verify OAuth error:', error)
-      reply.code(500).send({ error: 'Auto-verification failed' })
-    }
-  })
+  //     console.log(`[DEBUG] OAuth user auto-verified: ${user.email}`)
+  //     reply.send({ message: 'OAuth user auto-verified successfully' })
+  //   } catch (error) {
+  //     console.error('[DEBUG] Auto-verify OAuth error:', error)
+  //     reply.code(500).send({ error: 'Auto-verification failed' })
+  //   }
+  // })
 
   // Forgot password endpoint
   fastify.post('/forgot-password', { handler: forgotPassword })
