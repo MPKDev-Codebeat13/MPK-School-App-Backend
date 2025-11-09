@@ -881,8 +881,7 @@ export const setPasswordAfterOAuth = async (
     // Hash and set password
     const hashedPassword = await bcrypt.hash(password, 10)
     user.password = hashedPassword
-    // Auto-verify OAuth users after setting password
-    user.isVerified = true
+    // Do NOT auto-verify OAuth users - they need to complete profile and verify email
     await user.save()
 
     console.log(
