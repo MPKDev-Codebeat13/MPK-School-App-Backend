@@ -78,8 +78,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // Google OAuth start
   fastify.get('/google', async (request, reply) => {
     const clientId = process.env.GOOGLE_CLIENT_ID
-    // Force HTTP for localhost development
-    const redirectUri = 'http://localhost:4000/api/auth/google/callback'
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI
     const scope = 'openid profile email'
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`
     reply.redirect(authUrl)
@@ -102,7 +101,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
         code,
         grant_type: 'authorization_code',
-        redirect_uri: 'http://localhost:4000/api/auth/google/callback',
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
       })
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
