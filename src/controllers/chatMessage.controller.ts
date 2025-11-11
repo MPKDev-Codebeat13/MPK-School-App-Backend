@@ -230,3 +230,63 @@ export const deleteMessageForMe = async (
     reply.code(500).send({ error: 'Failed to delete message for you' })
   }
 }
+
+export const getUnreadMessageCount = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    const { room } = request.query as any
+    const userId = (request as any).user.id
+
+    // Get user's last read timestamp for this room
+    const User = require('../models/user.model').default
+    const user = await User.findById(userId)
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    const lastReadTimestamp = user.lastReadTimestamps?.get(room) || new Date(0)
+
+    // Count messages in room after last read timestamp
+    const unreadCount = await Message.countDocuments({
+      room,
+      timestamp: { $gt: lastReadTimestamp },
+      sender: { $ne: userId }, // Exclude own messages
+      deletedFor: { $nin: [(request as any).user.email] }, // Exclude deleted messages
+    })
+
+    reply.send({ unreadCount })
+  } catch (error) {
+    console.error('[ERROR] getUnreadMessageCount error:', error)
+    reply.code(500).send({ error: 'Failed to get unread message count' })
+  }
+}
+
+export const markMessagesAsRead = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    const { room } = request.body as any
+    const userId = (request as any).user.id
+
+    const User = require('../models/user.model').default
+    const user = await User.findById(userId)
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    // Update last read timestamp for this room
+    if (!user.lastReadTimestamps) {
+      user.lastReadTimestamps = new Map()
+    }
+    user.lastReadTimestamps.set(room, new Date())
+    await user.save()
+
+    reply.send({ success: true })
+  } catch (error) {
+    console.error('[ERROR] markMessagesAsRead error:', error)
+    reply.code(500).send({ error: 'Failed to mark messages as read' })
+  }
+}

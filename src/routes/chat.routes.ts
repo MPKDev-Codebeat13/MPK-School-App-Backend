@@ -1,6 +1,11 @@
 import { FastifyInstance } from 'fastify'
 import { getAllUsers } from '../controllers/chat.controller'
-import { saveMessage, getMessages } from '../controllers/chatMessage.controller'
+import {
+  saveMessage,
+  getMessages,
+  getUnreadMessageCount,
+  markMessagesAsRead,
+} from '../controllers/chatMessage.controller'
 import { authenticate } from '../middleware/auth'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -14,6 +19,16 @@ export default async function chatRoutes(fastify: FastifyInstance) {
   fastify.get('/messages', {
     preHandler: authenticate,
     handler: getMessages,
+  })
+
+  fastify.get('/messages/unread', {
+    preHandler: authenticate,
+    handler: getUnreadMessageCount,
+  })
+
+  fastify.post('/messages/mark-read', {
+    preHandler: authenticate,
+    handler: markMessagesAsRead,
   })
 
   fastify.delete('/messages/:id', {

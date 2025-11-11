@@ -23,6 +23,9 @@ export interface IUser extends Document {
     name: string
     class: string
   }
+  lastReadTimestamps?: {
+    [room: string]: Date
+  }
   isVerified: boolean
   isOAuth?: boolean
   verificationToken?: string
@@ -115,6 +118,11 @@ const userSchema = new Schema<IUser>(
     verificationEmailSent: {
       type: Boolean,
       default: false,
+    },
+    lastReadTimestamps: {
+      type: Map,
+      of: Date,
+      default: {},
     },
     lastVerificationEmailSent: Date,
     refreshTokens: [
