@@ -11,6 +11,8 @@ import {
   forgotPassword,
   resetPassword,
   setPasswordAfterOAuth,
+  getTheme,
+  updateTheme,
 } from '../controllers/auth.controller'
 import { authenticate } from '../middleware/auth'
 import * as jwt from 'jsonwebtoken'
@@ -317,4 +319,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     preHandler: authenticate,
     handler: setPasswordAfterOAuth,
   })
+
+  // Theme endpoints
+  fastify.get('/theme', { preHandler: authenticate, handler: getTheme })
+  fastify.put('/theme', { preHandler: authenticate, handler: updateTheme })
 }

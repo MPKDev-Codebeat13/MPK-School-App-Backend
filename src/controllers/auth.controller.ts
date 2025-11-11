@@ -907,3 +907,75 @@ export const setPasswordAfterOAuth = async (
     reply.code(500).send({ error: 'Failed to set password' })
   }
 }
+
+export const getTheme = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    console.log('[DEBUG] [START] getTheme controller called')
+    const userId = (request as any).user?.id
+
+    if (!userId) {
+      return reply.code(401).send({ error: 'Unauthorized' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    console.log('[DEBUG] [END] getTheme: Theme retrieved for user:', user.email)
+    reply.send({
+      theme: user.theme || {
+        name: 'Default Gradient',
+        class:
+          'bg-gradient-to-br from-indigo-900 via-purple-950 to-pink-900 text-white',
+      },
+    })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] getTheme controller:', error)
+    reply.code(500).send({ error: 'Failed to get theme' })
+  }
+}
+
+export const updateTheme = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  try {
+    console.log('[DEBUG] [START] updateTheme controller called')
+    const userId = (request as any).user?.id
+    const { theme } = request.body as any
+
+    if (!userId) {
+      return reply.code(401).send({ error: 'Unauthorized' })
+    }
+
+    if (!theme || !theme.name || !theme.class) {
+      return reply
+        .code(400)
+        .send({ error: 'Theme name and class are required' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+
+    user.theme = theme
+    await user.save()
+
+    console.log(
+      '[DEBUG] [END] updateTheme: Theme updated for user:',
+      user.email
+    )
+    reply.send({
+      message: 'Theme updated successfully',
+      theme: user.theme,
+    })
+  } catch (error) {
+    console.error('[DEBUG] [ERROR] updateTheme controller:', error)
+    reply.code(500).send({ error: 'Failed to update theme' })
+  }
+}

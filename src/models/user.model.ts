@@ -19,6 +19,10 @@ export interface IUser extends Document {
   section?: string
   subject?: string
   department?: string
+  theme?: {
+    name: string
+    class: string
+  }
   isVerified: boolean
   isOAuth?: boolean
   verificationToken?: string
@@ -87,6 +91,14 @@ const userSchema = new Schema<IUser>(
     department: {
       type: String,
       trim: true,
+    },
+    theme: {
+      name: { type: String, default: 'Default Gradient' },
+      class: {
+        type: String,
+        default:
+          'bg-gradient-to-br from-indigo-900 via-purple-950 to-pink-900 text-white',
+      },
     },
     isVerified: {
       type: Boolean,
