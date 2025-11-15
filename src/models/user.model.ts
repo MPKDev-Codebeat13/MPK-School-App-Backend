@@ -13,6 +13,8 @@ export interface IUser extends Document {
     | 'Admin'
     | 'Parent'
     | 'Department'
+    | 'Principal'
+    | 'Sub Principal'
   profilePicture?: string
 
   grade?: string
@@ -69,6 +71,8 @@ const userSchema = new Schema<IUser>(
         'Admin',
         'Parent',
         'Department',
+        'Principal',
+        'Sub Principal',
         '',
       ],
       required: function (this: IUser) {
