@@ -141,11 +141,21 @@ export async function getRejectionReasons(
 ) {
   try {
     const user = (request as any).user
-    if (!user || (user.role !== 'Department' && user.role !== 'Admin')) {
+    if (
+      !user ||
+      (user.role !== 'Department' &&
+        user.role !== 'Admin' &&
+        user.role !== 'Teacher')
+    ) {
       return reply.code(403).send({ error: 'Forbidden' })
     }
 
-    const rejectionReasons = await RejectionReason.find()
+    let query: any = {}
+    if (user.role === 'Teacher') {
+      query.teacherId = user._id
+    }
+
+    const rejectionReasons = await RejectionReason.find(query)
       .populate('lessonPlanId', 'title')
       .populate('teacherId', 'fullName email')
       .sort({ createdAt: -1 })
