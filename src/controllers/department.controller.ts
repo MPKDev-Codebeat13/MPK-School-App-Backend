@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import LessonPlan from '../models/lessonPlan.model'
+import RejectionReason from '../models/rejectionReason.model'
 
 export async function getLessonPlansBySubject(
   request: FastifyRequest,
@@ -70,6 +71,8 @@ export async function rejectLessonPlan(
     }
 
     const { id } = request.params as any
+    const { reason, highlightedText } = request.body as any
+
     const lessonPlan = await LessonPlan.findById(id)
     if (!lessonPlan) {
       return reply.code(404).send({ error: 'Lesson plan not found' })
@@ -82,6 +85,16 @@ export async function rejectLessonPlan(
 
     lessonPlan.status = 'rejected'
     await lessonPlan.save()
+
+    // Save rejection reason
+    const rejectionReason = new RejectionReason({
+      lessonPlanId: lessonPlan._id,
+      teacherId: lessonPlan.teacher,
+      reason: reason,
+      highlightedText: highlightedText,
+      status: 'active',
+    })
+    await rejectionReason.save()
 
     reply.send({ message: 'Lesson plan rejected' })
   } catch (error) {
@@ -119,5 +132,66 @@ export async function getLessonPlanById(
     reply.send(lessonPlan)
   } catch (error) {
     reply.code(500).send({ error: 'Failed to fetch lesson plan' })
+  }
+}
+
+export async function getRejectionReasons(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  try {
+    const user = (request as any).user
+    if (!user || (user.role !== 'Department' && user.role !== 'Admin')) {
+      return reply.code(403).send({ error: 'Forbidden' })
+    }
+
+    const rejectionReasons = await RejectionReason.find()
+      .populate('lessonPlanId', 'title')
+      .populate('teacherId', 'fullName email')
+      .sort({ createdAt: -1 })
+      .lean()
+
+    const formattedReasons = rejectionReasons.map((reason: any) => ({
+      _id: reason._id,
+      lessonPlanId: (reason.lessonPlanId as any)._id,
+      lessonPlanTitle: (reason.lessonPlanId as any).title,
+      teacherName: (reason.teacherId as any).fullName,
+      teacherEmail: (reason.teacherId as any).email,
+      reason: reason.reason,
+      highlightedText: reason.highlightedText,
+      createdAt: reason.createdAt,
+      status: reason.status,
+    }))
+
+    reply.send({ rejectionReasons: formattedReasons })
+  } catch (error) {
+    reply.code(500).send({ error: 'Failed to fetch rejection reasons' })
+  }
+}
+
+export async function markRejectionReasonResolved(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  try {
+    const user = (request as any).user
+    if (!user || (user.role !== 'Department' && user.role !== 'Admin')) {
+      return reply.code(403).send({ error: 'Forbidden' })
+    }
+
+    const { id } = request.params as any
+    const rejectionReason = await RejectionReason.findById(id)
+    if (!rejectionReason) {
+      return reply.code(404).send({ error: 'Rejection reason not found' })
+    }
+
+    rejectionReason.status = 'resolved'
+    await rejectionReason.save()
+
+    reply.send({ message: 'Rejection reason marked as resolved' })
+  } catch (error) {
+    reply
+      .code(500)
+      .send({ error: 'Failed to mark rejection reason as resolved' })
   }
 }
