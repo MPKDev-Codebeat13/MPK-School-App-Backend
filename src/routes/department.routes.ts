@@ -31,6 +31,7 @@ export default async function departmentRoutes(fastify: FastifyInstance) {
   fastify.get('/rejection-reasons', {
     preHandler: authenticate,
     handler: getRejectionReasons,
+    compress: false,
   })
   fastify.put('/rejection-reasons/:id/resolve', {
     preHandler: authenticate,
