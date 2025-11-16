@@ -153,10 +153,18 @@ export async function getRejectionReasons(
 
     const formattedReasons = rejectionReasons.map((reason: any) => ({
       _id: reason._id,
-      lessonPlanId: (reason.lessonPlanId as any)._id,
-      lessonPlanTitle: (reason.lessonPlanId as any).title,
-      teacherName: (reason.teacherId as any).fullName,
-      teacherEmail: (reason.teacherId as any).email,
+      lessonPlanId: reason.lessonPlanId
+        ? (reason.lessonPlanId as any)._id
+        : null,
+      lessonPlanTitle: reason.lessonPlanId
+        ? (reason.lessonPlanId as any).title
+        : 'Unknown Lesson Plan',
+      teacherName: reason.teacherId
+        ? (reason.teacherId as any).fullName
+        : 'Unknown Teacher',
+      teacherEmail: reason.teacherId
+        ? (reason.teacherId as any).email
+        : 'Unknown Email',
       reason: reason.reason,
       highlightedText: reason.highlightedText,
       createdAt: reason.createdAt,
